@@ -194,13 +194,16 @@ data_intake_read_source = async (
     url = new URL(entry);
   } else if (/^[A-Za-z0-9_.-]+$/.test(entry)) {
     url = new URL(
-      `https://gliders.ioos.us/erddap/tabledap/${encodeURIComponent(entry)}.csv`
+      `https://gliders.ioos.us/erddap/tabledap/${encodeURIComponent(entry)}.csv0`
     );
   } else {
     throw new Error("Dataset IDs may contain only letters, numbers, dots, dashes, and underscores.");
   }
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("Only HTTP and HTTPS dataset URLs are supported.");
+  }
+  if (url.pathname.includes("/erddap/tabledap/") && url.pathname.endsWith(".csv")) {
+    url.pathname = `${url.pathname}0`;
   }
 
   const response = await fetch(url);
@@ -417,20 +420,35 @@ other report exports.
 ```{ojs}
 data_intake_canonical_time = (value) => {
   if (value === null || value === undefined || String(value).trim() === "") return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf())
-    ? null
-    : parsed.toISOString().replace(".000Z", "Z");
+  const text = String(value).trim();
+  const match = text.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/
+  );
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute, second] = match.map(Number);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const calendarIsValid = calendarDate.getUTCFullYear() === year
+    && calendarDate.getUTCMonth() === month - 1
+    && calendarDate.getUTCDate() === day
+    && hour <= 23
+    && minute <= 59
+    && second <= 59;
+  const parsed = new Date(text);
+  return calendarIsValid && !Number.isNaN(parsed.valueOf())
+    ? parsed.toISOString().replace(".000Z", "Z")
+    : null;
 }
 
 data_intake_validation = {
   const issues = [];
   const requiredFields = ["latitude", "longitude", "time"];
+  const missingRequired = requiredFields.filter(
+    (requiredField) => !data_intake_mapping[requiredField]
+  );
 
-  for (const requiredField of requiredFields) {
-    if (!data_intake_mapping[requiredField]) {
-      issues.push(`Required field "${requiredField}" is not mapped.`);
-    }
+  for (const requiredField of missingRequired) {
+    issues.push(`Required field "${requiredField}" is not mapped.`);
   }
 
   const standardizedRows = data_intake_loaded.rows.map((row) => {
@@ -477,7 +495,7 @@ data_intake_validation = {
     }
   }
 
-  return {issues, standardizedRows};
+  return {issues, missingRequired, standardizedRows};
 }
 ```
 
@@ -502,15 +520,17 @@ viewof data_intake_acknowledged = Inputs.toggle({
   label: "Acknowledge & Proceed to Dashboard",
   value: false,
   disabled: data_intake_validation.issues.length === 0
+    || data_intake_validation.missingRequired.length > 0
 })
 ```
 
 ```{ojs}
 data_intake_dashboard_status = {
   const hasRows = data_intake_loaded.rows.length > 0;
-  const mayProceed = hasRows && (
-    data_intake_validation.issues.length === 0 || data_intake_acknowledged
-  );
+  const hasRequiredMappings = data_intake_validation.missingRequired.length === 0;
+  const mayProceed = hasRows
+    && hasRequiredMappings
+    && (data_intake_validation.issues.length === 0 || data_intake_acknowledged);
   return mayProceed
     ? html`<div class="data-intake__status data-intake__status--success">
         Dashboard generation is unlocked.

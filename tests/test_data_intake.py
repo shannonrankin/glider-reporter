@@ -27,6 +27,8 @@ class DataIntakePageTests(unittest.TestCase):
             "Download Field Mapping",
             '"latitude", "longitude", "time"',
             "Acknowledge & Proceed to Dashboard",
+            "missingRequired",
+            ".csv0",
         ):
             self.assertIn(expected, self.page)
 
