@@ -31,6 +31,21 @@ class WebsiteDocumentationTests(unittest.TestCase):
             "https://github.com/shannonrankin/glider-reporter", self.project
         )
 
+    def test_workflow_deploys_rendered_site_to_github_pages(self):
+        workflow = (
+            REPOSITORY_ROOT / ".github" / "workflows" / "publish_quarto.yml"
+        ).read_text(encoding="utf-8")
+
+        for expected in (
+            "quarto render",
+            "uses: actions/upload-pages-artifact@v4",
+            "path: _site",
+            "uses: actions/deploy-pages@v4",
+            "pages: write",
+            "id-token: write",
+        ):
+            self.assertIn(expected, workflow)
+
     def test_home_documents_primary_user_workflows(self):
         for expected in (
             "## Build a report in three steps",
