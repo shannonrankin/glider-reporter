@@ -1,0 +1,182 @@
+/*-- scss:defaults --*/
+
+$function-explorer-blue: #005ea8;
+$function-explorer-blue-dark: #073b64;
+$function-explorer-border: #c7d3dd;
+$function-explorer-green: #16794a;
+$function-explorer-amber: #8a4b08;
+
+/*-- scss:rules --*/
+
+.function-explorer {
+  max-width: 76rem;
+
+  .function-explorer__filters {
+    align-items: end;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    margin-block: 1rem 2rem;
+  }
+
+  .function-explorer__filters form,
+  .function-explorer__filters label,
+  .function-explorer__filters input,
+  .function-explorer__filters select {
+    max-width: none;
+    width: 100%;
+  }
+
+  .function-explorer__result-count {
+    color: #455663;
+    font-weight: 600;
+  }
+
+  .function-explorer__grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  }
+
+  .function-explorer__card {
+    border: 1px solid $function-explorer-border;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 0.4rem rgb(7 59 100 / 8%);
+    display: flex;
+    flex-direction: column;
+    padding: 1.1rem;
+  }
+
+  .function-explorer__card h3 {
+    color: $function-explorer-blue-dark;
+    margin-top: 0;
+  }
+
+  .function-explorer__card p {
+    flex: 1;
+  }
+
+  .function-explorer__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-block: 0.5rem 1rem;
+  }
+
+  .function-explorer__tag {
+    background: #e9f2f9;
+    border-radius: 999px;
+    color: $function-explorer-blue-dark;
+    font-size: 0.8rem;
+    font-weight: 650;
+    padding: 0.2rem 0.55rem;
+  }
+
+  .function-explorer__tag--ready {
+    background: #e8f5ee;
+    color: $function-explorer-green;
+  }
+
+  .function-explorer__tag--translation {
+    background: #fff3df;
+    color: $function-explorer-amber;
+  }
+
+  .function-explorer__details-button {
+    background: $function-explorer-blue;
+    border: 0;
+    border-radius: 0.3rem;
+    color: white;
+    cursor: pointer;
+    font-weight: 650;
+    margin-bottom: 0.75rem;
+    padding: 0.55rem 0.9rem;
+  }
+
+  .function-explorer__details-button:hover,
+  .function-explorer__details-button:focus-visible {
+    background: $function-explorer-blue-dark;
+  }
+
+  .function-explorer__card-link,
+  .function-explorer__issue-link {
+    color: $function-explorer-blue;
+    font-weight: 600;
+  }
+
+  .function-explorer__card-link {
+    font-size: 0.86rem;
+  }
+
+  .function-explorer__empty {
+    background: #f1f3f5;
+    border-left: 0.3rem solid #5c6770;
+    padding: 1rem;
+  }
+
+  .function-explorer__overlay {
+    background: rgb(14 31 43 / 55%);
+    inset: 0;
+    position: fixed;
+    z-index: 1040;
+  }
+
+  .function-explorer__drawer {
+    background: white;
+    box-shadow: -0.4rem 0 1.2rem rgb(14 31 43 / 22%);
+    height: 100%;
+    max-width: 34rem;
+    overflow-y: auto;
+    padding: 1.5rem;
+    position: fixed;
+    right: 0;
+    top: 0;
+    transform: translateX(100%);
+    transition: transform 180ms ease-out;
+    width: min(92vw, 34rem);
+    z-index: 1050;
+  }
+
+  .function-explorer__drawer--open {
+    transform: translateX(0);
+  }
+
+  .function-explorer__drawer-close {
+    background: transparent;
+    border: 1px solid $function-explorer-border;
+    border-radius: 0.3rem;
+    cursor: pointer;
+    float: right;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .function-explorer__drawer h2 {
+    clear: both;
+    color: $function-explorer-blue-dark;
+    padding-top: 0.75rem;
+  }
+
+  .function-explorer__field-list {
+    columns: 2;
+    padding-left: 1.25rem;
+  }
+
+  .function-explorer__preview {
+    border: 1px solid $function-explorer-border;
+    border-radius: 0.35rem;
+    display: block;
+    height: auto;
+    margin-block: 0.75rem 1rem;
+    max-width: 100%;
+  }
+
+  .function-explorer__citation {
+    color: #455663;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .function-explorer__drawer {
+      transition: none;
+    }
+  }
+}
