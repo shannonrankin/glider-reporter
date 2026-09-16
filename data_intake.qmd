@@ -37,14 +37,15 @@ its headers are normalized to `snake_case`. **Next:** choose one source below
 and select, upload, or identify a dataset.
 
 ```{ojs}
-viewof data_intake_source = Inputs.radio(
+data_intake_source_control = Inputs.radio(
   new Map([
     ["Sample Dataset", "sample"],
     ["Upload Custom CSV", "upload"],
     ["GliderDAC / ERDDAP", "erddap"]
   ]),
-  {label: "Data source", value: "sample"}
+  {label: "Data source"}
 )
+viewof data_intake_source = data_intake_source_control
 ```
 
 <div class="data-intake__source-grid">
@@ -52,8 +53,8 @@ viewof data_intake_source = Inputs.radio(
 
 ### Sample dataset
 
-**What is this?** Pre-loaded example oceanographic glider datasets (OG1.0
-standard or Hackathon format) for instant testing.
+**What is this?** Built-in example oceanographic glider datasets (OG1.0
+standard or Hackathon format) for testing after you explicitly load one.
 
 ```{ojs}
 viewof data_intake_sample = Inputs.select(
@@ -65,6 +66,20 @@ viewof data_intake_sample = Inputs.select(
 )
 ```
 
+```{ojs}
+data_intake_load_sample = {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "data-intake__button";
+  button.textContent = "Load Sample Dataset";
+  button.addEventListener("click", () => {
+    data_intake_source_control.value = "sample";
+    data_intake_source_control.dispatchEvent(new Event("input", {bubbles: true}));
+  });
+  return button;
+}
+```
+
 </div>
 <div class="data-intake__card">
 
@@ -74,10 +89,17 @@ viewof data_intake_sample = Inputs.select(
 without sending data to an external server.
 
 ```{ojs}
-viewof data_intake_upload = Inputs.file({
+data_intake_upload_control = Inputs.file({
   label: "CSV file",
   accept: ".csv,text/csv"
 })
+data_intake_upload_control.addEventListener("input", () => {
+  if (data_intake_upload_control.value) {
+    data_intake_source_control.value = "upload";
+    data_intake_source_control.dispatchEvent(new Event("input", {bubbles: true}));
+  }
+})
+viewof data_intake_upload = data_intake_upload_control
 ```
 
 Files stay in your browser. Headers are normalized to strict `snake_case`.
@@ -91,10 +113,11 @@ Files stay in your browser. Headers are normalized to strict `snake_case`.
 ERDDAP servers via dataset ID or REST API URL.
 
 ```{ojs}
-viewof data_intake_erddap_input = Inputs.text({
+data_intake_erddap_control = Inputs.text({
   label: "Dataset ID or CSV URL",
   placeholder: "dataset-id or https://…/tabledap/dataset.csv?…"
 })
+viewof data_intake_erddap_input = data_intake_erddap_control
 ```
 
 <details class="data-intake__guidance">
@@ -174,6 +197,10 @@ data_intake_read_source = async (
   upload,
   erddapInput
 ) => {
+  if (!source) {
+    return {rows: [], name: "No dataset selected", error: null};
+  }
+
   if (source === "sample") {
     const isHackathon = sample === "hackathon";
     const path = isHackathon
@@ -270,8 +297,25 @@ data_intake_source_status = {
   const normalizationMessage = columnCount === 0
     ? "No column headers detected"
     : `✓ All ${columnCount} column header${columnCount === 1 ? "" : "s"} normalized to snake_case`;
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "data-intake__button data-intake__button--clear";
+  clearButton.textContent = "Clear Dataset";
+  clearButton.addEventListener("click", () => {
+    const uploadInput = data_intake_upload_control.querySelector("input[type=file]");
+    const mappingInput = data_intake_mapping_file_control.querySelector("input[type=file]");
+    if (uploadInput) uploadInput.value = "";
+    if (mappingInput) mappingInput.value = "";
+    data_intake_erddap_control.value = "";
+    data_intake_source_control.value = null;
+    data_intake_upload_control.dispatchEvent(new Event("input", {bubbles: true}));
+    data_intake_mapping_file_control.dispatchEvent(new Event("input", {bubbles: true}));
+    data_intake_erddap_control.dispatchEvent(new Event("input", {bubbles: true}));
+    data_intake_source_control.dispatchEvent(new Event("input", {bubbles: true}));
+  });
   return html`<section class="data-intake__dataset-status" aria-live="polite">
     <h3>Loaded Datasets & Status</h3>
+    ${clearButton}
     <dl>
       <div>
         <dt>Active dataset</dt>
@@ -300,7 +344,9 @@ data_intake_source_status = {
     <p class="data-intake__next-step">
       ${data_intake_loaded.error
         ? "→ Resolve the data source message above before continuing."
-        : "→ Proceed to Step 2 to map required latitude, longitude, and time fields."}
+        : rowCount === 0
+          ? "→ Select or load a dataset to begin."
+          : "→ Proceed to Step 2 to map required latitude, longitude, and time fields."}
     </p>
   </section>`;
 }
@@ -359,10 +405,11 @@ data_intake_definition_suggestions = data_intake_source === "sample"
 ```
 
 ```{ojs}
-viewof data_intake_mapping_file = Inputs.file({
+data_intake_mapping_file_control = Inputs.file({
   label: "Import Field Mapping",
   accept: ".json,application/json"
 })
+viewof data_intake_mapping_file = data_intake_mapping_file_control
 ```
 
 ```{ojs}
@@ -435,6 +482,29 @@ viewof data_intake_mapping = {
     }
   });
   return form;
+}
+```
+
+```{ojs}
+data_intake_optional_fields = [
+  "depth",
+  "temperature",
+  "salinity",
+  "density",
+  "oxygen"
+]
+
+data_intake_optional_warnings = {
+  if (data_intake_loaded.rows.length === 0) return null;
+  const unmapped = data_intake_optional_fields.filter(
+    (field) => !data_intake_mapping[field]
+  );
+  if (unmapped.length === 0) return null;
+  return html`<div class="data-intake__optional-warning" role="status">
+    <h3>Optional OG1.0 Fields Not Mapped</h3>
+    <p>These warnings do not block dashboard generation:</p>
+    <ul>${unmapped.map((field) => html`<li>${field}</li>`)}</ul>
+  </div>`;
 }
 ```
 
@@ -567,7 +637,7 @@ data_intake_red_flags = {
   if (data_intake_loaded.rows.length === 0) return null;
   if (data_intake_validation.issues.length === 0) {
     return html`<div class="data-intake__status data-intake__status--success">
-      No coordinate or timestamp red flags were found.
+      No Red Flags Detected — Ready to Proceed
     </div>`;
   }
   return html`<div class="data-intake__red-flag" role="alert">
@@ -620,16 +690,31 @@ viewof data_intake_acknowledged = {
 ```{ojs}
 data_intake_dashboard_status = {
   const hasRows = data_intake_loaded.rows.length > 0;
+  const hasNoLoadError = data_intake_loaded.error === null;
   const hasRequiredMappings = data_intake_validation.missingRequired.length === 0;
+  const validationAccepted = data_intake_validation.issues.length === 0
+    || data_intake_acknowledged;
   const mayProceed = hasRows
+    && hasNoLoadError
     && hasRequiredMappings
-    && (data_intake_validation.issues.length === 0 || data_intake_acknowledged);
+    && validationAccepted;
+  const lockedReasons = [
+    ...(!hasRows ? ["Load a dataset with at least one valid row."] : []),
+    ...(!hasNoLoadError ? [`Resolve the data source error: ${data_intake_loaded.error}`] : []),
+    ...(!hasRequiredMappings
+      ? [`Map required fields: ${data_intake_validation.missingRequired.join(", ")}.`]
+      : []),
+    ...(hasRows && hasRequiredMappings && !validationAccepted
+      ? ["Review and acknowledge the coordinate or timestamp red flags."]
+      : [])
+  ];
   return mayProceed
     ? html`<div class="data-intake__status data-intake__status--success">
-        Dashboard generation is unlocked.
+        <strong>Dashboard Generation Unlocked</strong>
       </div>`
     : html`<div class="data-intake__status data-intake__status--locked">
-        Dashboard generation is locked.
+        <strong>Dashboard Generation Locked</strong>
+        <ul>${lockedReasons.map((reason) => html`<li>${reason}</li>`)}</ul>
       </div>`;
 }
 ```
