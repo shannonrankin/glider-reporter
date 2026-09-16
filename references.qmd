@@ -18,6 +18,15 @@ The function registry records each method's source, implementation, and
 originating GitHub Issue. This page reads that registry during rendering so the
 bibliography remains synchronized as functions are added.
 
+<details class="references__code-drawer">
+<summary>View Source Code</summary>
+
+The complete ObservableJS logic is available in
+[`references.qmd`](https://github.com/shannonrankin/glider-reporter/blob/main/references.qmd)
+for inspection or copying.
+
+</details>
+
 ## Function citation registry
 
 ```{ojs}

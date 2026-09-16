@@ -23,6 +23,15 @@ resources:
 4. Follow the GitHub Issue link to review build history or contribute another language version.
 :::
 
+<details class="function-explorer__code-drawer">
+<summary>View Source Code</summary>
+
+The complete ObservableJS logic is available in
+[`function_explorer.qmd`](https://github.com/shannonrankin/glider-reporter/blob/main/function_explorer.qmd)
+for inspection or copying.
+
+</details>
+
 ## Find a function
 
 <div class="function-explorer__filters">
