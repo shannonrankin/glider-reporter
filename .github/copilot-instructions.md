@@ -57,5 +57,9 @@
 5. **CORS & GliderDAC / ERDDAP Handling:**
    - Provide clear modal instructions advising users to pre-filter ERDDAP / GliderDAC datasets due to browser CORS and network latency.
 
+## OG1.0 Data Cleaning
+- Sample data lives under `data/sample/`; generated examples belong in `data/precomputed_outputs/`.
+- Cleaning functions in `python/data_cleaner.py` and `R/data_cleaner.R` normalize headers to `snake_case`, convert coordinates to decimal degrees, and format timestamps as UTC ISO8601.
+- Cleaning returns a validation report so missing or malformed `latitude`, `longitude`, and `time` fields are explicit rather than silently ignored.
 
 
