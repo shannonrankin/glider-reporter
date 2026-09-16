@@ -33,6 +33,75 @@ $data-intake-border: #c7d3dd;
     padding: 0.5rem 0.75rem;
   }
 
+  .data-intake__code-drawer {
+    border: 1px solid $data-intake-border;
+    border-radius: 0.35rem;
+    margin-block: 1rem 2rem;
+    padding: 0.7rem 1rem;
+  }
+
+  .data-intake__code-drawer summary {
+    color: $data-intake-blue;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .data-intake__dataset-status {
+    background: #f4f9fc;
+    border: 2px solid $data-intake-blue;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.2rem 0.6rem rgb(0 0 0 / 8%);
+    margin-block: 1.5rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .data-intake__dataset-status h3 {
+    margin-top: 0;
+  }
+
+  .data-intake__dataset-status dl {
+    display: grid;
+    gap: 0.6rem 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  }
+
+  .data-intake__dataset-status dt,
+  .data-intake__columns strong {
+    font-weight: 700;
+  }
+
+  .data-intake__dataset-status dd {
+    margin-left: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .data-intake__normalization {
+    color: $data-intake-green;
+    font-weight: 600;
+    margin-block: 0.75rem;
+  }
+
+  .data-intake__badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  .data-intake__badge {
+    background: #e2eef6;
+    border: 1px solid $data-intake-border;
+    border-radius: 999px;
+    color: #17324d;
+    padding: 0.2rem 0.55rem;
+  }
+
+  .data-intake__next-step {
+    font-weight: 600;
+    margin-bottom: 0;
+    margin-top: 1rem;
+  }
+
   .data-intake__mapping {
     overflow-x: auto;
   }
@@ -70,6 +139,17 @@ $data-intake-border: #c7d3dd;
     opacity: 0.55;
   }
 
+  .data-intake__button--proceed {
+    font-size: 1.05rem;
+    margin-block: 1rem;
+    min-height: 3rem;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .data-intake__button--acknowledged {
+    background: $data-intake-green;
+  }
+
   .data-intake__status,
   .data-intake__red-flag {
     border-radius: 0.35rem;
@@ -98,4 +178,3 @@ $data-intake-border: #c7d3dd;
     border-left: 0.3rem solid #5c6770;
   }
 }
-
