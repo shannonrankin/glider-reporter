@@ -45,6 +45,14 @@
    - Zero errors in CSV parsing / source reading.
    - All 3 mandatory fields (`latitude`, `longitude`, `time`) mapped.
    - Active user acknowledgment if coordinate/timestamp red flags are detected.
+   
+## Global Code Chunk Execution & Interactive UI Standards
+1. **Global Code Chunk Suppression:** All Quarto `.qmd` files across the entire site MUST specify `execute: echo: false` in their YAML frontmatter to prevent raw `{ojs}`, R, or Python code blocks from rendering inline into the webpage UI.
+2. **Interactive Filter Option Chips:** For category filters (e.g., Required Fields, Languages, Output Types), convert standard select menus into visible, clickable colored option chips/pills. Clicking a chip toggles its filter state and updates search results in real time.
+3. **Scrollable Drawer & Overlay Usability:**
+   - Drawer modals must have fixed position, dedicated top/right viewport pinning, and explicit inner scrolling (`overflow-y: auto; max-height: 100vh; z-index: 1000`).
+   - Backdrop overlays must dim the background comfortably without blocking drawer scrolling or swallowing clicks inside the drawer panel.
+   - Drawers must feature a distinct header with a sticky "Close (✕)" button and a clean "View Build History on GitHub" action button.
 
 - **OJS Scope & Reactivity**:
   - Keep all reactive OJS state variables unique across files to prevent cross-page state leaking in Quarto multi-page builds.
