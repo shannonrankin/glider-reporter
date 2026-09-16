@@ -62,4 +62,15 @@
 - Cleaning functions in `python/data_cleaner.py` and `R/data_cleaner.R` normalize headers to `snake_case`, convert coordinates to decimal degrees, and format timestamps as UTC ISO8601.
 - Cleaning returns a validation report so missing or malformed `latitude`, `longitude`, and `time` fields are explicit rather than silently ignored.
 
+## Function Registry & Crowd-Sourcing Architecture
+1. **GitHub Issue Form Schema:** Function contributions arrive via `.github/ISSUE_TEMPLATE/function_submission.yml`.
+2. **Language Ingestion & Polyglot Support:**
+   - Primary supported execution languages for reports are `R`, `Python`, and `Quarto`.
+   - Contributions are welcome in ANY language (e.g., `MATLAB`, `Julia`, `SAS`, or `Prompt/Pseudo-code`).
+   - Non-R/Python submissions are marked with `"translation_status": "needs_translation"` in `functions/registry.json` so community members can adapt them into R or Python.
+3. **Registry Standard (`functions/registry.json`):** Every crowd-sourced function must be indexed with: `id`, `name`, `description`, `language`, `translation_status`, `required_fields`, `output_type`, `citations`, `issue_url`, and `code_file`.
+4. **Reporting Function Standards:**
+   - Standardized functions accept a clean `snake_case` dataframe (from `data_cleaner`).
+   - Functions output HTML-renderable plots, Markdown tables, or dynamic summary text.
+
 
