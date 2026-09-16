@@ -1,0 +1,15 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "Glider Reporter"
+  navbar:
+    left:
+      - href: data_intake.qmd
+        text: Data Intake
+
+format:
+  html:
+    toc: true
+

@@ -1,0 +1,524 @@
+---
+title: "Data Intake & Field Matching"
+format:
+  html:
+    theme:
+      - cosmo
+      - styles/data_intake.scss
+    toc: true
+---
+
+<div class="data-intake">
+
+::: {.callout-note}
+## Before you begin
+
+1. Choose a built-in dataset, upload a CSV, or enter a GliderDAC/ERDDAP dataset ID or CSV URL.
+2. Match each OG1.0 field to a normalized field in your dataset.
+3. Review any red flags. If any appear, acknowledge them before proceeding.
+4. Download reusable mappings to `output/`, or import a previously saved `glider_field_mapping.json`.
+:::
+
+## 1. Choose a data source
+
+```{ojs}
+viewof data_intake_source = Inputs.radio(
+  new Map([
+    ["Sample Dataset", "sample"],
+    ["Upload Custom CSV", "upload"],
+    ["GliderDAC / ERDDAP", "erddap"]
+  ]),
+  {label: "Data source", value: "sample"}
+)
+```
+
+<div class="data-intake__source-grid">
+<div class="data-intake__card">
+
+### Sample dataset
+
+```{ojs}
+viewof data_intake_sample = Inputs.select(
+  new Map([
+    ["OG1.0 standard sample", "og10"],
+    ["Custom hackathon sample", "hackathon"]
+  ]),
+  {label: "Built-in dataset", value: "og10"}
+)
+```
+
+</div>
+<div class="data-intake__card">
+
+### Upload custom CSV
+
+```{ojs}
+viewof data_intake_upload = Inputs.file({
+  label: "CSV file",
+  accept: ".csv,text/csv"
+})
+```
+
+Files stay in your browser. Headers are normalized to strict `snake_case`.
+
+</div>
+<div class="data-intake__card">
+
+### GliderDAC / ERDDAP
+
+```{ojs}
+viewof data_intake_erddap_input = Inputs.text({
+  label: "Dataset ID or CSV URL",
+  placeholder: "dataset-id or https://…/tabledap/dataset.csv?…"
+})
+```
+
+<details class="data-intake__guidance">
+<summary>GliderDAC / ERDDAP guidance</summary>
+
+Browser CORS policies may block remote requests. Pre-filter large datasets by
+time, location, and variables in ERDDAP, then paste the resulting CSV URL here.
+A bare dataset ID uses the IOOS GliderDAC ERDDAP tabledap endpoint.
+
+</details>
+</div>
+</div>
+
+```{ojs}
+data_intake_snake_case = (name) => {
+  const normalized = String(name)
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+  return normalized || "unnamed";
+}
+
+data_intake_unique_headers = (headers) => {
+  const counts = new Map();
+  return headers.map((header) => {
+    const base = data_intake_snake_case(header);
+    const count = (counts.get(base) || 0) + 1;
+    counts.set(base, count);
+    return count === 1 ? base : `${base}_${count}`;
+  });
+}
+
+data_intake_parse_csv = (text) => {
+  const records = [];
+  let record = [];
+  let field = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quoted && character === '"' && text[index + 1] === '"') {
+      field += '"';
+      index += 1;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === "," && !quoted) {
+      record.push(field);
+      field = "";
+    } else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && text[index + 1] === "\n") index += 1;
+      record.push(field);
+      if (record.some((value) => value !== "")) records.push(record);
+      record = [];
+      field = "";
+    } else {
+      field += character;
+    }
+  }
+  record.push(field);
+  if (record.some((value) => value !== "")) records.push(record);
+  if (records.length === 0) return [];
+
+  const headers = data_intake_unique_headers(records[0]);
+  return records.slice(1).map((values) => {
+    const row = Object.create(null);
+    headers.forEach((header, index) => {
+      row[header] = values[index] ?? "";
+    });
+    return row;
+  });
+}
+
+data_intake_read_source = async (
+  source,
+  sample,
+  upload,
+  erddapInput
+) => {
+  if (source === "sample") {
+    const isHackathon = sample === "hackathon";
+    const path = isHackathon
+      ? "data/sample/custom_hackathon/glider_hackathon_data.csv"
+      : "data/sample/og10_standard/glider_og10_data.csv";
+    const text = isHackathon
+      ? await FileAttachment(
+          "data/sample/custom_hackathon/glider_hackathon_data.csv"
+        ).text()
+      : await FileAttachment(
+          "data/sample/og10_standard/glider_og10_data.csv"
+        ).text();
+    return {
+      rows: data_intake_parse_csv(text),
+      name: path,
+      error: null
+    };
+  }
+
+  if (source === "upload") {
+    if (!upload) {
+      return {rows: [], name: "No CSV selected", error: "Choose a CSV file to continue."};
+    }
+    return {
+      rows: data_intake_parse_csv(await upload.text()),
+      name: upload.name,
+      error: null
+    };
+  }
+
+  const entry = erddapInput.trim();
+  if (!entry) {
+    return {
+      rows: [],
+      name: "No remote dataset selected",
+      error: "Enter a GliderDAC/ERDDAP dataset ID or CSV URL."
+    };
+  }
+
+  let url;
+  if (/^https?:\/\//i.test(entry)) {
+    url = new URL(entry);
+  } else if (/^[A-Za-z0-9_.-]+$/.test(entry)) {
+    url = new URL(
+      `https://gliders.ioos.us/erddap/tabledap/${encodeURIComponent(entry)}.csv`
+    );
+  } else {
+    throw new Error("Dataset IDs may contain only letters, numbers, dots, dashes, and underscores.");
+  }
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Only HTTP and HTTPS dataset URLs are supported.");
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Remote request failed (${response.status}).`);
+  return {
+    rows: data_intake_parse_csv(await response.text()),
+    name: url.toString(),
+    error: null
+  };
+}
+```
+
+```{ojs}
+data_intake_loaded = {
+  try {
+    return await data_intake_read_source(
+      data_intake_source,
+      data_intake_sample,
+      data_intake_upload,
+      data_intake_erddap_input
+    );
+  } catch (error) {
+    return {
+      rows: [],
+      name: "Unable to load dataset",
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+data_intake_columns = data_intake_loaded.rows.length > 0
+  ? Object.keys(data_intake_loaded.rows[0])
+  : []
+```
+
+```{ojs}
+data_intake_source_status = {
+  const className = data_intake_loaded.error
+    ? "data-intake__status data-intake__status--error"
+    : "data-intake__status data-intake__status--success";
+  const message = data_intake_loaded.error
+    ? data_intake_loaded.error
+    : `${data_intake_loaded.rows.length.toLocaleString()} rows loaded from ${data_intake_loaded.name}.`;
+  return html`<div class=${className}>${message}</div>`;
+}
+```
+
+## 2. Match fields to OG1.0
+
+```{ojs}
+data_intake_standard_fields = [
+  "latitude",
+  "longitude",
+  "time",
+  "depth",
+  "temperature",
+  "salinity",
+  "density",
+  "oxygen"
+]
+
+data_intake_aliases = new Map([
+  ["latitude", ["latitude", "lat", "lat_deg", "latitude_deg"]],
+  ["longitude", ["longitude", "lon", "lon_deg", "longitude_deg"]],
+  ["time", ["time", "iso_time", "timestamp", "datetime"]],
+  ["depth", ["depth", "depth_m", "pressure"]],
+  ["temperature", ["temperature", "temp", "temp_c", "water_temperature"]],
+  ["salinity", ["salinity", "salinity_ppt", "practical_salinity"]],
+  ["density", ["density", "sea_water_density"]],
+  ["oxygen", ["oxygen", "dissolved_oxygen", "oxygen_concentration"]]
+])
+
+data_intake_field_definitions = data_intake_parse_csv(
+  await FileAttachment(
+    "data/sample/custom_hackathon/glider_hackathon_fieldDefinitions.csv"
+  ).text()
+)
+
+data_intake_definition_suggestions = data_intake_source === "sample"
+  && data_intake_sample === "hackathon"
+  ? Object.fromEntries(
+      data_intake_field_definitions.flatMap((definition) => {
+        const userField = data_intake_snake_case(definition.field_name);
+        const details = `${definition.field_name} ${definition.description} ${definition.units}`
+          .toLowerCase();
+        const standardField = data_intake_standard_fields.find((field) => {
+          if (field === "time") return /time|timestamp|iso8601/.test(details);
+          return details.includes(field);
+        });
+        return standardField ? [[standardField, userField]] : [];
+      })
+    )
+  : {}
+```
+
+```{ojs}
+viewof data_intake_mapping_file = Inputs.file({
+  label: "Import Field Mapping",
+  accept: ".json,application/json"
+})
+```
+
+```{ojs}
+data_intake_imported = {
+  if (!data_intake_mapping_file) return {mappings: {}, error: null};
+  try {
+    const parsed = JSON.parse(await data_intake_mapping_file.text());
+    const mappings = parsed.mappings ?? parsed;
+    if (!mappings || Array.isArray(mappings) || typeof mappings !== "object") {
+      throw new Error("The mapping JSON must contain an object.");
+    }
+    return {mappings, error: null};
+  } catch (error) {
+    return {
+      mappings: {},
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+```
+
+```{ojs}
+viewof data_intake_mapping = {
+  const form = document.createElement("form");
+  form.className = "data-intake__mapping";
+  const table = document.createElement("table");
+  table.innerHTML = "<thead><tr><th>OG1.0 standard field</th><th>User field</th></tr></thead>";
+  const body = document.createElement("tbody");
+
+  for (const standardField of data_intake_standard_fields) {
+    const row = document.createElement("tr");
+    const standardCell = document.createElement("th");
+    const userCell = document.createElement("td");
+    const select = document.createElement("select");
+    standardCell.scope = "row";
+    standardCell.textContent = standardField;
+    select.name = standardField;
+    select.setAttribute("aria-label", `User field for ${standardField}`);
+    select.append(new Option("Not mapped", ""));
+    for (const column of data_intake_columns) {
+      select.append(new Option(column, column));
+    }
+
+    const imported = data_intake_imported.mappings[standardField];
+    const suggested = data_intake_definition_suggestions[standardField];
+    const inferred = (data_intake_aliases.get(standardField) || [])
+      .find((alias) => data_intake_columns.includes(alias));
+    select.value = data_intake_columns.includes(imported)
+      ? imported
+      : data_intake_columns.includes(suggested)
+        ? suggested
+        : (inferred || "");
+    select.addEventListener("change", () => {
+      form.dispatchEvent(new Event("input", {bubbles: true}));
+    });
+    userCell.append(select);
+    row.append(standardCell, userCell);
+    body.append(row);
+  }
+
+  table.append(body);
+  form.append(table);
+  Object.defineProperty(form, "value", {
+    get() {
+      return Object.fromEntries(
+        [...form.elements]
+          .filter((element) => element.name)
+          .map((element) => [element.name, element.value])
+      );
+    }
+  });
+  return form;
+}
+```
+
+```{ojs}
+data_intake_mapping_message = data_intake_imported.error
+  ? html`<div class="data-intake__status data-intake__status--error">
+      Mapping import failed: ${data_intake_imported.error}
+    </div>`
+  : null
+```
+
+```{ojs}
+data_intake_download_mapping = {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "data-intake__button";
+  button.textContent = "Download Field Mapping";
+  button.disabled = data_intake_columns.length === 0;
+  button.addEventListener("click", () => {
+    const selected = Object.fromEntries(
+      Object.entries(data_intake_mapping).filter(([, userField]) => userField)
+    );
+    const blob = new Blob([JSON.stringify(selected, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "glider_field_mapping.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+  return button;
+}
+```
+
+Place the downloaded `glider_field_mapping.json` file in `output/` with your
+other report exports.
+
+## 3. Validate required fields
+
+```{ojs}
+data_intake_canonical_time = (value) => {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.valueOf())
+    ? null
+    : parsed.toISOString().replace(".000Z", "Z");
+}
+
+data_intake_validation = {
+  const issues = [];
+  const requiredFields = ["latitude", "longitude", "time"];
+
+  for (const requiredField of requiredFields) {
+    if (!data_intake_mapping[requiredField]) {
+      issues.push(`Required field "${requiredField}" is not mapped.`);
+    }
+  }
+
+  const standardizedRows = data_intake_loaded.rows.map((row) => {
+    const standardized = Object.create(null);
+    for (const [standardField, userField] of Object.entries(data_intake_mapping)) {
+      if (userField) standardized[standardField] = row[userField];
+    }
+    if ("latitude" in standardized) {
+      standardized.latitude = String(standardized.latitude).trim() === ""
+        ? Number.NaN
+        : Number(standardized.latitude);
+    }
+    if ("longitude" in standardized) {
+      standardized.longitude = String(standardized.longitude).trim() === ""
+        ? Number.NaN
+        : Number(standardized.longitude);
+    }
+    if ("time" in standardized) standardized.time = data_intake_canonical_time(standardized.time);
+    return standardized;
+  });
+
+  if (data_intake_mapping.latitude) {
+    const invalidLatitude = standardizedRows.filter(
+      (row) => !Number.isFinite(row.latitude) || row.latitude < -90 || row.latitude > 90
+    ).length;
+    if (invalidLatitude > 0) {
+      issues.push(`${invalidLatitude} row(s) have latitude outside -90 to 90 or are not numeric.`);
+    }
+  }
+
+  if (data_intake_mapping.longitude) {
+    const invalidLongitude = standardizedRows.filter(
+      (row) => !Number.isFinite(row.longitude) || row.longitude < -180 || row.longitude > 180
+    ).length;
+    if (invalidLongitude > 0) {
+      issues.push(`${invalidLongitude} row(s) have longitude outside -180 to 180 or are not numeric.`);
+    }
+  }
+
+  if (data_intake_mapping.time) {
+    const invalidTime = standardizedRows.filter((row) => row.time === null).length;
+    if (invalidTime > 0) {
+      issues.push(`${invalidTime} row(s) contain blank or malformed timestamps.`);
+    }
+  }
+
+  return {issues, standardizedRows};
+}
+```
+
+```{ojs}
+data_intake_red_flags = {
+  if (data_intake_loaded.rows.length === 0) return null;
+  if (data_intake_validation.issues.length === 0) {
+    return html`<div class="data-intake__status data-intake__status--success">
+      No coordinate or timestamp red flags were found.
+    </div>`;
+  }
+  return html`<div class="data-intake__red-flag" role="alert">
+    <h3>Red Flag Warning</h3>
+    <p>Review these potential OG1.0 discrepancies before continuing:</p>
+    <ul>${data_intake_validation.issues.map((issue) => html`<li>${issue}</li>`)}</ul>
+  </div>`;
+}
+```
+
+```{ojs}
+viewof data_intake_acknowledged = Inputs.toggle({
+  label: "Acknowledge & Proceed to Dashboard",
+  value: false,
+  disabled: data_intake_validation.issues.length === 0
+})
+```
+
+```{ojs}
+data_intake_dashboard_status = {
+  const hasRows = data_intake_loaded.rows.length > 0;
+  const mayProceed = hasRows && (
+    data_intake_validation.issues.length === 0 || data_intake_acknowledged
+  );
+  return mayProceed
+    ? html`<div class="data-intake__status data-intake__status--success">
+        Dashboard generation is unlocked.
+      </div>`
+    : html`<div class="data-intake__status data-intake__status--locked">
+        Dashboard generation is locked.
+      </div>`;
+}
+```
+
+</div>
