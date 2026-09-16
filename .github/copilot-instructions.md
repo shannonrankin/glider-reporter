@@ -93,3 +93,14 @@
 2. **Dynamic Preview Engine:** Use ObservableJS (`{ojs}`) reactive state to render a real-time markdown text/HTML preview as users toggle and reorder function modules.
 3. **Client-Side ZIP Bundling:** Generate downloadable zip packages directly in the browser using client-side JavaScript (`JSZip`). The bundle MUST include the output report file (`.qmd`/`.rmd`/`.py`), required function source scripts, data cleaning helper scripts, and user field mappings (`glider_field_mapping.json`).
 4. **Scoped Styles:** Keep layout and control bar styling strictly isolated within `styles/report_builder.scss`.
+
+## Website Architecture, Documentation & Governance (`_quarto.yml`)
+1. **Global Navigation Schema:** `_quarto.yml` MUST cleanly structure navigation across:
+   - Home / Instructions (`index.qmd`)
+   - Data Intake & Mapping (`data_intake.qmd`)
+   - Function Explorer (`function_explorer.qmd`)
+   - Report Builder (`report_builder.qmd`)
+   - References & AI Attribution (`references.qmd`)
+2. **Citation Standards:** `references.qmd` dynamically aggregates citation strings from `functions/registry.json` and formats bibliography entries cleanly.
+3. **AI Governance Statement:** Include explicit attribution and transparency metadata regarding AI agent usage (GitHub Copilot, LLM prompt workflows) in development and maintenance.
+4. **Isolated SCSS Scope:** Main layout styles belong in `styles/main.scss`, preserving isolated SCSS modules for individual dashboard pages.
