@@ -29,7 +29,13 @@
 - Code Chunks: Keep small and focused with explicit options (`echo`, `message`, `warning`).
 - Style: Prefer readability, small helper functions, and clear type stability over complex nested pipelines.
 
-  ## Global Quarto & OJS Coding Standards
+## Quarto UI & ObservableJS Display Guidelines
+1. **Hide Raw Code Chunks:** All `{ojs}` chunks in Quarto pages MUST use `echo: false` or execute in non-rendering blocks to prevent raw JS code or variable definitions (`viewof ...`) from appearing in page output.
+2. **Code Inspection Drawers:** Provide a dedicated "View Source Code" button or slide-out drawer (`<details>`) for advanced users to view or copy OJS/JS logic without cluttering the primary user UI.
+3. **Loaded Asset Indicators:** Always display an explicit "Active Datasets" summary card listing loaded file names, row counts, detected column headers, and normalization status.
+4. **Interactive Action Elements:** Use styled HTML `<button>` elements with clear click states rather than default micro-toggles for critical user acknowledgments and workflow navigation.
+
+## Global Quarto & OJS Coding Standards
 
 - **OJS Scope & Reactivity**:
   - Keep all reactive OJS state variables unique across files to prevent cross-page state leaking in Quarto multi-page builds.
