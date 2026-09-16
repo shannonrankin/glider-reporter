@@ -73,3 +73,11 @@
    - Standardized functions accept a clean `snake_case` dataframe (from `data_cleaner`).
    - Functions output HTML-renderable plots, Markdown tables, or dynamic summary text.
 
+## Client-Side Data & Field Matching Engine (Quarto + OJS)
+1. **Interactive State Management:** Use ObservableJS (`{ojs}`) reactive primitives for client-side state (uploaded file parsing, field matching selections, and validation flags).
+2. **Field Matching Persistence:** Enable downloading a JSON/CSV mapping file (`glider_field_mapping.json`) so users can re-use custom field mappings in future reporting sessions.
+3. **Data Quality Checks:**
+   - Automatically convert latitude/longitude inputs to decimal degrees (`float`).
+   - Standardize time fields to ISO8601 strings (`YYYY-MM-DDTHH:MM:SSZ`).
+   - If required fields (`latitude`, `longitude`, `time`) fail format checks, display an interactive confirmation prompt that forces user acknowledgment before building reports.
+4. **GliderDAC / ERDDAP Modal Guidance:** Display a non-blocking UI alert advising users to pre-filter ERDDAP queries due to browser CORS and network speed constraints.
