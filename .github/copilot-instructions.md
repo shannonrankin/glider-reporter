@@ -64,9 +64,9 @@
   - **`supplement/`**: Reserved for custom schema templates (e.g., `supplement/custom-vsm-schema.json`), helper scripts, or reference documentation.
   - Check that any hardcoded navigation links use relative local paths (e.g., `./process-primary.qmd`).
   
-  ## Interactive UI, Filter Layout & Modal Usability Standards
+## Interactive UI, Filter Layout & Modal Usability Standards
 1. **Search Input Layout:** Form labels for text inputs must auto-fit to label length, leaving the remaining flex space entirely for user text input.
-2. **Distinct Categorical Filter Cards:** Filter categories (Required Fields, Languages, Output Types) must be housed inside visually separated container boxes (`data-intake__card` or `function-explorer__filter-box`) using borders and distinct background shading.
+2. **Distinct Categorical Filter Cards:** Filter categories (Required Fields, Languages, Output Types) must be housed inside visually separated container boxes (`data-intake__card` or `function-explorer__filter-card`) using borders and distinct background shading.
 3. **Slide-Out Drawer Usability & Controls:**
    - Drawers must feature an explicit `z-index` hierarchy (`z-index: 1001` for drawer, `z-index: 1000` for non-blocking backdrop overlay) with independent `overflow-y: auto` scrolling.
    - Drawers must contain top and bottom **Close (✕)** buttons, a **Full Screen Toggle** button, and house the function's **View Build History on GitHub** link exclusively inside the drawer panel (removing it from main catalog cards).
