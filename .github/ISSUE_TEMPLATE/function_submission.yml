@@ -1,0 +1,82 @@
+name: Function submission
+description: Propose an analysis or visualization for the function registry
+title: "[Function]: "
+body:
+  - type: input
+    id: function_name
+    attributes:
+      label: Function Name
+      description: Provide a short title for the analysis or visualization.
+      placeholder: Temperature and salinity depth profile
+    validations:
+      required: true
+
+  - type: textarea
+    id: short_description
+    attributes:
+      label: Short Description
+      description: Explain what the function calculates or displays.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - R
+        - Python
+        - Quarto
+        - MATLAB
+        - Julia
+        - Pseudo-code / Conceptual Prompt
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: execution_instructions
+    attributes:
+      label: Execution Instructions
+      description: Describe the kernel, packages, or environment setup needed to run the code.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: required_data_fields
+    attributes:
+      label: Required Data Fields
+      description: Select every field required by the function.
+      options:
+        - label: time
+        - label: latitude
+        - label: longitude
+        - label: depth
+        - label: temperature
+        - label: salinity
+
+  - type: dropdown
+    id: output_type
+    attributes:
+      label: Output Type
+      options:
+        - Figure/Plot
+        - Table
+        - Summary Text
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code / Snippet / Description
+      description: Paste code or prompt logic, or provide a link to the script.
+    validations:
+      required: true
+
+  - type: input
+    id: citation
+    attributes:
+      label: Citation / Reference
+      description: Cite the paper, manual, or methodology, if applicable.
+      placeholder: OceanGliders Quality Control Manual v1.0

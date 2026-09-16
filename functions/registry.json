@@ -1,0 +1,19 @@
+[
+  {
+    "id": "temp_salinity_profile",
+    "name": "Temperature & Salinity Depth Profile",
+    "description": "Plots vertical depth profiles of temperature and salinity across the glider mission.",
+    "language": "R",
+    "translation_status": "ready",
+    "required_fields": [
+      "depth",
+      "temperature",
+      "salinity"
+    ],
+    "output_type": "Figure/Plot",
+    "code_file": "functions/r/temp_salinity_profile.Rmd",
+    "citation": "OceanGliders Quality Control Manual v1.0",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/2"
+  }
+]
+

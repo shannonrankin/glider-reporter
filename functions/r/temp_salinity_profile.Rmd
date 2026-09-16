@@ -1,0 +1,59 @@
+---
+title: "Temperature & Salinity Depth Profile"
+output: html_document
+---
+
+```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+profile_data <- readr::read_csv(
+  here::here("data", "sample", "og10_standard", "glider_og10_data.csv"),
+  show_col_types = FALSE
+)
+```
+
+```{r profile, echo=TRUE, message=FALSE, warning=FALSE}
+plot_data <- base::rbind(
+  data.frame(
+    depth = profile_data$depth,
+    value = profile_data$temperature,
+    measurement = "Temperature (°C)"
+  ),
+  data.frame(
+    depth = profile_data$depth,
+    value = profile_data$salinity,
+    measurement = "Salinity (PSU)"
+  )
+)
+
+profile_plot <- ggplot2::ggplot(
+  plot_data,
+  ggplot2::aes(x = value, y = depth)
+) +
+  ggplot2::geom_path(linewidth = 0.7, color = "#0072B2") +
+  ggplot2::scale_y_reverse() +
+  ggplot2::facet_wrap(
+    ggplot2::vars(measurement),
+    scales = "free_x",
+    nrow = 1
+  ) +
+  ggplot2::labs(
+    title = "Temperature and Salinity Depth Profiles",
+    x = NULL,
+    y = "Depth (m)"
+  ) +
+  ggplot2::theme_minimal()
+
+ggplot2::ggsave(
+  here::here(
+    "data",
+    "precomputed_outputs",
+    "temp_salinity_profile.png"
+  ),
+  plot = profile_plot,
+  width = 8,
+  height = 5,
+  dpi = 150
+)
+
+profile_plot
+```
+
