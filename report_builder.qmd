@@ -1,0 +1,482 @@
+---
+title: "Interactive Report Builder"
+format:
+  html:
+    theme:
+      - cosmo
+      - styles/report_builder.scss
+    toc: true
+resources:
+  - functions/**
+  - R/data_cleaner.R
+  - python/data_cleaner.py
+---
+
+<div class="report-builder">
+
+::: {.callout-note}
+## Build a report bundle
+
+1. Upload the `glider_field_mapping.json` downloaded from **Data Intake**.
+2. Select compatible functions, then use **Move up** and **Move down** to set their report order.
+3. Choose a document format and review the live preview.
+4. Download the ZIP and place it in `output/` before extracting and running it locally.
+:::
+
+## 1. Load mapped fields
+
+```{ojs}
+viewof report_builder_mapping_file = Inputs.file({
+  label: "Import Field Mapping",
+  accept: ".json,application/json"
+})
+```
+
+```{ojs}
+report_builder_mapping_state = {
+  if (!report_builder_mapping_file) {
+    return {
+      mappings: {},
+      error: null
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(await report_builder_mapping_file.text());
+    const mappings = parsed.mappings ?? parsed;
+    if (!mappings || Array.isArray(mappings) || typeof mappings !== "object") {
+      throw new Error("The mapping JSON must contain an object.");
+    }
+
+    const validMappings = Object.fromEntries(
+      Object.entries(mappings).filter(
+        ([standardField, userField]) =>
+          typeof standardField === "string"
+          && typeof userField === "string"
+          && standardField.trim()
+          && userField.trim()
+      )
+    );
+    return {mappings: validMappings, error: null};
+  } catch (error) {
+    return {
+      mappings: {},
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+report_builder_mapping_text = JSON.stringify(
+  report_builder_mapping_state.mappings,
+  null,
+  2
+)
+
+report_builder_mapped_fields = Object.keys(
+  report_builder_mapping_state.mappings
+)
+```
+
+```{ojs}
+report_builder_mapping_status = {
+  if (report_builder_mapping_state.error) {
+    return html`<div class="report-builder__status report-builder__status--error">
+      Mapping import failed: ${report_builder_mapping_state.error}
+    </div>`;
+  }
+
+  if (report_builder_mapped_fields.length === 0) {
+    return html`<div class="report-builder__status">
+      Upload a field mapping to identify compatible functions.
+    </div>`;
+  }
+
+  return html`<div class="report-builder__status report-builder__status--success">
+    ${report_builder_mapped_fields.length} mapped field${report_builder_mapped_fields.length === 1 ? "" : "s"}:
+    ${report_builder_mapped_fields.join(", ")}
+  </div>`;
+}
+```
+
+```{ojs}
+report_builder_registry = JSON.parse(
+  await FileAttachment("functions/registry.json").text()
+)
+
+report_builder_classified = report_builder_registry.map((entry) => {
+  const requiredFields = entry.required_fields || [];
+  const missing_fields = requiredFields.filter(
+    (field) => !report_builder_mapped_fields.includes(field)
+  );
+  return {...entry, missing_fields};
+})
+
+report_builder_available = report_builder_classified.filter((entry) => {
+  const requiredFields = entry.required_fields || [];
+  return requiredFields.every(
+    (field) => report_builder_mapped_fields.includes(field)
+  );
+})
+
+report_builder_incompatible = report_builder_classified.filter(
+  (entry) => entry.missing_fields.length > 0
+)
+```
+
+## 2. Choose and order functions
+
+### Available Functions
+
+```{ojs}
+viewof report_builder_selection = {
+  const form = document.createElement("form");
+  form.className = "report-builder__function-list";
+  let orderedIds = report_builder_available.map((entry) => entry.id);
+  const selectedIds = new Set();
+
+  Object.defineProperty(form, "value", {
+    get() {
+      return orderedIds.filter((id) => selectedIds.has(id));
+    }
+  });
+
+  const emit = () => {
+    form.dispatchEvent(new Event("input", {bubbles: true}));
+  };
+
+  const render = () => {
+    form.replaceChildren();
+    if (orderedIds.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "report-builder__empty";
+      empty.textContent = report_builder_mapped_fields.length === 0
+        ? "Upload a mapping to see compatible functions."
+        : "No functions support all currently mapped fields.";
+      form.append(empty);
+      return;
+    }
+
+    orderedIds.forEach((id, index) => {
+      const entry = report_builder_available.find((item) => item.id === id);
+      const row = document.createElement("div");
+      row.className = "report-builder__function";
+
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedIds.has(id);
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) selectedIds.add(id);
+        else selectedIds.delete(id);
+        emit();
+      });
+
+      const details = document.createElement("span");
+      const name = document.createElement("strong");
+      name.textContent = entry.name;
+      const metadata = document.createElement("small");
+      metadata.textContent = `${entry.language} · ${entry.output_type}`;
+      details.append(name, metadata);
+      label.append(checkbox, details);
+
+      const controls = document.createElement("span");
+      controls.className = "report-builder__order-controls";
+      for (const [text, offset] of [["Move up", -1], ["Move down", 1]]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = text;
+        button.disabled = index + offset < 0 || index + offset >= orderedIds.length;
+        button.addEventListener("click", () => {
+          report_builder_move(orderedIds, index, index + offset);
+          render();
+          emit();
+        });
+        controls.append(button);
+      }
+
+      row.append(label, controls);
+      form.append(row);
+    });
+  };
+
+  render();
+  return form;
+}
+```
+
+```{ojs}
+report_builder_move = (items, fromIndex, toIndex) => {
+  const [item] = items.splice(fromIndex, 1);
+  items.splice(toIndex, 0, item);
+  return items;
+}
+```
+
+<details class="report-builder__incompatible">
+<summary>Incompatible Functions ({ojs} report_builder_incompatible.length)</summary>
+
+```{ojs}
+report_builder_incompatible_list = {
+  const list = document.createElement("div");
+  list.className = "report-builder__incompatible-list";
+
+  if (report_builder_incompatible.length === 0) {
+    const message = document.createElement("p");
+    message.textContent = report_builder_mapped_fields.length === 0
+      ? "Upload a mapping to review missing fields."
+      : "All registered functions are compatible.";
+    list.append(message);
+    return list;
+  }
+
+  for (const entry of report_builder_incompatible) {
+    const card = document.createElement("article");
+    const title = document.createElement("strong");
+    const reason = document.createElement("p");
+    title.textContent = entry.name;
+    reason.textContent = `Missing fields: ${entry.missing_fields.join(", ")}`;
+    card.append(title, reason);
+    list.append(card);
+  }
+  return list;
+}
+```
+
+</details>
+
+## 3. Select a format and preview
+
+```{ojs}
+viewof report_builder_format = Inputs.select(
+  new Map([
+    ["Quarto (.qmd)", "qmd"],
+    ["R Markdown (.Rmd)", "rmd"],
+    ["Python (.py)", "py"]
+  ]),
+  {label: "Export target", value: "qmd"}
+)
+```
+
+```{ojs}
+report_builder_selected_entries = report_builder_selection
+  .map((id) => report_builder_registry.find((entry) => entry.id === id))
+  .filter(Boolean)
+
+report_builder_fence = "\x60\x60\x60"
+
+report_builder_module = (entry, format) => {
+  const citation = entry.citation || "No citation supplied.";
+  const heading = format === "py"
+    ? `\n# ${entry.name}\n# Citation: ${citation}\n`
+    : `\n## ${entry.name}\n\n**Citation:** ${citation}\n\n`;
+
+  if (format === "py") {
+    return entry.language === "Python"
+      ? `${heading}runpy.run_path(${JSON.stringify(entry.code_file)}, run_name="__main__")\n`
+      : `${heading}# This ${entry.language} module is included in the bundle at:\n# ${entry.code_file}\n`;
+  }
+
+  if (entry.language === "Python") {
+    return `${heading}${report_builder_fence}{python}\nimport runpy\nrunpy.run_path(${JSON.stringify(entry.code_file)}, run_name="__main__")\n${report_builder_fence}\n`;
+  }
+
+  if (/\.r$/i.test(entry.code_file)) {
+    return `${heading}${report_builder_fence}{r}\nsource(here::here(${entry.code_file.split("/").map(JSON.stringify).join(", ")}))\n${report_builder_fence}\n`;
+  }
+
+  const childPath = entry.code_file.split("/").map(JSON.stringify).join(", ");
+  return `${heading}${report_builder_fence}{r, results='asis'}\ncat(knitr::knit_child(here::here(${childPath}), quiet = TRUE), sep = "\\n")\n${report_builder_fence}\n`;
+}
+
+report_builder_document = {
+  const modules = report_builder_selected_entries
+    .map((entry) => report_builder_module(entry, report_builder_format))
+    .join("\n");
+
+  if (report_builder_format === "py") {
+    return `"""Custom Glider Report.
+
+Generated by Glider Reporter. Update DATA_FILE before running.
+"""
+
+import json
+import runpy
+from pathlib import Path
+
+import pandas as pd
+
+from python.data_cleaner import clean_glider_data
+
+DATA_FILE = Path("data/glider_data.csv")
+with Path("glider_field_mapping.json").open(encoding="utf-8") as mapping_file:
+    field_mapping = json.load(mapping_file)
+
+report_data = pd.read_csv(DATA_FILE)
+report_data = report_data.rename(
+    columns={user_field: standard_field for standard_field, user_field in field_mapping.items()}
+)
+report_data = clean_glider_data(report_data)
+${modules || "\n# Select at least one compatible function in the report builder.\n"}`;
+  }
+
+  const yaml = report_builder_format === "qmd"
+    ? `---\ntitle: "Custom Glider Report"\nformat: html\n---`
+    : `---\ntitle: "Custom Glider Report"\noutput: html_document\n---`;
+  const setup = `${report_builder_fence}{r setup, include=FALSE}
+field_mapping <- jsonlite::read_json(
+  here::here("glider_field_mapping.json"),
+  simplifyVector = TRUE
+)
+report_data <- readr::read_csv(
+  here::here("data", "glider_data.csv"),
+  show_col_types = FALSE
+)
+for (standard_field in names(field_mapping)) {
+  user_field <- field_mapping[[standard_field]]
+  names(report_data)[names(report_data) == user_field] <- standard_field
+}
+source(here::here("R", "data_cleaner.R"))
+report_data <- clean_glider_data(report_data)
+${report_builder_fence}`;
+
+  return `${yaml}
+
+${setup}
+
+Update \`data/glider_data.csv\` with your local input data before rendering.
+${modules || "\nSelect at least one compatible function in the report builder.\n"}`;
+}
+```
+
+```{ojs}
+report_builder_preview = {
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+  pre.className = "report-builder__preview";
+  pre.setAttribute("aria-live", "polite");
+  code.textContent = report_builder_document;
+  pre.append(code);
+  return pre;
+}
+```
+
+## 4. Download the report bundle
+
+```{ojs}
+report_builder_dependencies = Promise.all([
+  require("jszip@3.10.1"),
+  require("file-saver@2.0.5")
+])
+
+report_builder_fetch_text = async (path) => {
+  const response = await fetch(new URL(path, document.baseURI));
+  if (!response.ok) {
+    throw new Error(`Unable to add ${path} (${response.status}).`);
+  }
+  return response.text();
+}
+
+report_builder_report_name = new Map([
+  ["qmd", "custom_glider_report.qmd"],
+  ["rmd", "custom_glider_report.Rmd"],
+  ["py", "custom_glider_report.py"]
+]).get(report_builder_format)
+
+report_builder_readme = `CUSTOM GLIDER REPORT
+====================
+
+Bundle contents
+---------------
+- ${report_builder_report_name}: generated report
+- functions/: selected reporting modules
+- R/data_cleaner.R and python/data_cleaner.py: data-cleaning helpers
+- glider_field_mapping.json: your reusable field mapping
+
+Before running
+--------------
+1. Extract this ZIP inside the project's output/ directory.
+2. Create a data/ folder and save your input as data/glider_data.csv.
+3. Install the packages used by the generated report and selected modules.
+
+RStudio
+-------
+Open ${report_builder_report_name}. For .qmd choose Render; for .Rmd choose Knit.
+
+VS Code
+-------
+Open the extracted folder. Render .qmd with "quarto render ${report_builder_report_name}",
+or run the Python file with "python ${report_builder_report_name}".
+
+Jupyter
+-------
+For Python output, open a terminal in the extracted folder and run
+"jupyter lab", then use "%run ${report_builder_report_name}" in a notebook.
+`
+```
+
+```{ojs}
+report_builder_download = {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "report-builder__download";
+  button.textContent = "Download Report Bundle";
+  button.disabled = report_builder_selected_entries.length === 0
+    || report_builder_mapping_state.error !== null;
+
+  const status = document.createElement("span");
+  status.className = "report-builder__download-status";
+  status.setAttribute("aria-live", "polite");
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "Building bundle…";
+    try {
+      const [JSZipModule, FileSaverModule] = await report_builder_dependencies;
+      const JSZip = JSZipModule.default || JSZipModule;
+      const saveAs = FileSaverModule.saveAs
+        || FileSaverModule.default
+        || FileSaverModule;
+      const zip = new JSZip();
+      const functionsFolder = zip.folder("functions");
+
+      zip.file(report_builder_report_name, report_builder_document);
+      zip.file("glider_field_mapping.json", report_builder_mapping_text);
+      zip.file("README.txt", report_builder_readme);
+      zip.file("R/data_cleaner.R", await report_builder_fetch_text("R/data_cleaner.R"));
+      zip.file(
+        "python/data_cleaner.py",
+        await report_builder_fetch_text("python/data_cleaner.py")
+      );
+
+      for (const entry of report_builder_selected_entries) {
+        if (!entry.code_file) continue;
+        const relativePath = entry.code_file.replace(/^functions\//, "");
+        functionsFolder.file(
+          relativePath,
+          await report_builder_fetch_text(entry.code_file)
+        );
+      }
+
+      const bundle = await zip.generateAsync({type: "blob"});
+      saveAs(bundle, "custom_glider_report_bundle.zip");
+      status.textContent = "Download ready. Place the ZIP in output/.";
+    } catch (error) {
+      status.textContent = `Bundle failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+    } finally {
+      button.disabled = report_builder_selected_entries.length === 0;
+    }
+  });
+
+  const container = document.createElement("div");
+  container.className = "report-builder__download-row";
+  container.append(button, status);
+  return container;
+}
+```
+
+All processing occurs in your browser. Place the downloaded ZIP in `output/`;
+that directory is reserved for user-generated exports.
+
+</div>
