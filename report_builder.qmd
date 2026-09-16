@@ -1,5 +1,7 @@
 ---
 title: "Interactive Report Builder"
+execute:
+  echo: false
 format:
   html:
     theme:
@@ -22,6 +24,15 @@ resources:
 3. Choose a document format and review the live preview.
 4. Download the ZIP and place it in `output/` before extracting and running it locally.
 :::
+
+<details class="report-builder__code-drawer">
+<summary>View Source Code</summary>
+
+The complete ObservableJS logic is available in
+[`report_builder.qmd`](https://github.com/shannonrankin/glider-reporter/blob/main/report_builder.qmd)
+for inspection or copying.
+
+</details>
 
 ## 1. Load mapped fields
 

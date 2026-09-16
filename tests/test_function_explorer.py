@@ -28,19 +28,27 @@ class FunctionExplorerPageTests(unittest.TestCase):
             "viewof function_explorer_required_fields",
             "viewof function_explorer_language",
             "viewof function_explorer_output_type",
+            "function_explorer_chip_input",
+            '"aria-pressed"',
             "function_explorer_matches",
             "selectedFields.every",
         ):
             self.assertIn(expected, self.page)
 
+        self.assertNotIn("Inputs.select(", self.page)
+
     def test_page_has_cards_and_accessible_detail_drawer(self):
         for expected in (
             "function-explorer__card",
             "function-explorer__drawer",
+            "function-explorer__drawer-header",
+            "function-explorer__drawer-body",
             '"role", "dialog"',
             '"aria-modal", "true"',
             "View details",
+            "✕ Close",
             "Needs translation",
+            "View Build History on GitHub",
             "contribute an alternative language version on GitHub",
         ):
             self.assertIn(expected, self.page)
@@ -51,6 +59,11 @@ class FunctionExplorerPageTests(unittest.TestCase):
             REPOSITORY_ROOT / "styles" / "function_explorer.scss"
         ).read_text(encoding="utf-8")
         self.assertIn(".function-explorer {", stylesheet)
+        self.assertIn("grid-column: 1 / -1", stylesheet)
+        self.assertIn(".function-explorer__chip--active", stylesheet)
+        self.assertIn(".function-explorer__drawer-body", stylesheet)
+        self.assertIn("overflow-y: auto", stylesheet)
+        self.assertIn("z-index: 1001", stylesheet)
         self.assertNotIn(":root", stylesheet)
 
     def test_site_navigation_links_to_explorer(self):
