@@ -7,15 +7,17 @@
 - Nature: Template repository; code must be accessible to novice R users.
 - Directory Structure: Data (`data/`), Outputs (`output/`), Supplementary (`supplement/`), QMD Pages ('content/').
 
-## R Code Standards
-- Syntax: Tidyverse with native `|>` or `%>%` pipes (consistent per file).
-- Namespace: Prefix non-base functions in snippets (`dplyr::mutate()`, `stringr::str_detect()`).
-- Naming: Strict `lower_snake_case` for files and objects. No dots in names.
-- Paths: Relative only via `here::here()`. Never call `setwd()`.
-- Error Handling: Use `rlang::abort()` / `rlang::warn()`.
-  - Recoverable flows: `purrr::possibly()` for fallbacks, `purrr::safely()` for error logging.
-- Plotting: `ggplot2` with explicit labels, units, and clean layers.
-- Dependencies: Managed via `renv`. Snapshot after package additions.
+## Coding Conventions
+- **R Scripts:** Syntax: Tidyverse with native `|>` or `%>%` pipes (consistent per file).
+- **R Scripts:** Namespace: Prefix non-base functions in snippets (`dplyr::mutate()`, `stringr::str_detect()`).
+- **R Scripts:** Naming: Strict `lower_snake_case` for files and objects. No dots in names.
+- **R Scripts:** Paths: Relative only via `here::here()`. Never call `setwd()`.
+- **R Scripts:** Error Handling: Use `rlang::abort()` / `rlang::warn()`.
+- **R Scripts:** Recoverable flows: `purrr::possibly()` for fallbacks, `purrr::safely()` for error logging.
+- **R Scripts:** Plotting: `ggplot2` with explicit labels, units, and clean layers.
+- **R Scripts:** Dependencies: Managed via `renv`. Snapshot after package additions.
+- **Python Scripts:** Use `pandas` and standard scientific library dependencies (`numpy`, `matplotlib`).
+- **ObservableJS (`{ojs}`):** Use standard D3, Inputs, or Plot primitives suitable for static Quarto rendering.
 
 ## Security & Execution
 - Credentials: Never hardcode secrets. Use `Sys.getenv()` or `keyring`.
@@ -41,3 +43,19 @@
 
 - **User Guidance & UX**:
   - Every interactive page (`*-primary.qmd`) must start with an instructional callout box (`::: {.callout-note}`) outlining clear step-by-step instructions before the interactive components.
+  
+  # GitHub Copilot Instructions for `glider-reporter`
+
+## Project Architecture & Core Principles
+1. **Open Source & Reproducibility:** All code must be reproducible, well-documented, and cleanly structured in R, Python, or ObservableJS (`{ojs}`).
+2. **Client-Side First (GitHub Pages):** All web interactivity (dashboards, field matching, dynamic previewing, and zip bundle downloading) must run entirely client-side using Quarto + ObservableJS (`{ojs}`) or WebAssembly (Pyodide/WebR).
+3. **Modular CSS/SCSS Isolation:** Keep styles strictly scoped per dashboard/module using dedicated SCSS files (e.g., `dashboard_builder.scss`, `function_explorer.scss`). Never overwrite global root styles across separate Quarto pages.
+4. **Data Standardization & OG1.0 Compliance:**
+   - All input datasets must be transformed to `snake_case` for field identifiers.
+   - Coordinates MUST be decimal degrees (`float`).
+   - Timestamps MUST follow ISO8601 standard (`YYYY-MM-DDTHH:MM:SSZ`).
+5. **CORS & GliderDAC / ERDDAP Handling:**
+   - Provide clear modal instructions advising users to pre-filter ERDDAP / GliderDAC datasets due to browser CORS and network latency.
+
+
+
