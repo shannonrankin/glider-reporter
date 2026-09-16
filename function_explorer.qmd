@@ -1,0 +1,317 @@
+---
+title: "Function Explorer"
+format:
+  html:
+    theme:
+      - cosmo
+      - styles/function_explorer.scss
+    toc: true
+resources:
+  - data/precomputed_outputs/*
+---
+
+<div class="function-explorer">
+
+::: {.callout-note}
+## Explore reporting functions
+
+1. Search by function name, description, or keyword.
+2. Filter by the fields available in your cleaned dataset, language, or output type.
+3. Select **View details** to inspect requirements, attribution, and a sample output.
+4. Follow the GitHub Issue link to review build history or contribute another language version.
+:::
+
+## Find a function
+
+<div class="function-explorer__filters">
+
+```{ojs}
+viewof function_explorer_search = Inputs.text({
+  label: "Keyword search",
+  placeholder: "Search titles, descriptions, or keywords"
+})
+```
+
+```{ojs}
+function_explorer_registry = JSON.parse(
+  await FileAttachment("functions/registry.json").text()
+)
+
+function_explorer_standard_fields = [
+  "latitude",
+  "longitude",
+  "time",
+  "depth",
+  "temperature",
+  "salinity",
+  "density",
+  "oxygen"
+]
+
+function_explorer_available_fields = Array.from(new Set([
+  ...function_explorer_standard_fields,
+  ...function_explorer_registry.flatMap((entry) => entry.required_fields || [])
+])).sort()
+```
+
+```{ojs}
+viewof function_explorer_required_fields = Inputs.select(
+  function_explorer_available_fields,
+  {
+    label: "Required fields",
+    multiple: true,
+    value: []
+  }
+)
+```
+
+```{ojs}
+viewof function_explorer_language = Inputs.select(
+  ["All", "R", "Python", "Quarto", "MATLAB", "Julia", "Pseudo-code"],
+  {label: "Language", value: "All"}
+)
+```
+
+```{ojs}
+viewof function_explorer_output_type = Inputs.select(
+  ["All", "Figure/Plot", "Table", "Summary Text"],
+  {label: "Output type", value: "All"}
+)
+```
+
+</div>
+
+```{ojs}
+function_explorer_matches = {
+  const query = function_explorer_search.trim().toLowerCase();
+  const selectedFields = function_explorer_required_fields || [];
+
+  return function_explorer_registry.filter((entry) => {
+    const searchableText = [
+      entry.name,
+      entry.description,
+      ...(entry.keywords || [])
+    ].join(" ").toLowerCase();
+    const requiredFields = entry.required_fields || [];
+
+    return (!query || searchableText.includes(query))
+      && selectedFields.every((field) => requiredFields.includes(field))
+      && (function_explorer_language === "All"
+        || entry.language === function_explorer_language)
+      && (function_explorer_output_type === "All"
+        || entry.output_type === function_explorer_output_type);
+  });
+}
+```
+
+```{ojs}
+function_explorer_element = (tagName, className, text) => {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  return element;
+}
+
+function_explorer_issue_link = (entry, className) => {
+  const link = function_explorer_element(
+    "a",
+    className,
+    "View build history or contribute an alternative language version on GitHub"
+  );
+  link.href = entry.issue_url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  return link;
+}
+
+function_explorer_tag = (text, modifier = "") => function_explorer_element(
+  "span",
+  `function-explorer__tag${modifier ? ` ${modifier}` : ""}`,
+  text
+)
+```
+
+## Available functions
+
+```{ojs}
+function_explorer_catalog = {
+  const catalog = function_explorer_element("section", "function-explorer__catalog");
+  const resultLabel = function_explorer_element(
+    "p",
+    "function-explorer__result-count",
+    `${function_explorer_matches.length} function${function_explorer_matches.length === 1 ? "" : "s"} found`
+  );
+  resultLabel.setAttribute("aria-live", "polite");
+  catalog.append(resultLabel);
+
+  if (function_explorer_matches.length === 0) {
+    catalog.append(function_explorer_element(
+      "p",
+      "function-explorer__empty",
+      "No functions match these filters. Try removing a filter or using a broader search."
+    ));
+    return catalog;
+  }
+
+  const grid = function_explorer_element("div", "function-explorer__grid");
+  const overlay = function_explorer_element("div", "function-explorer__overlay");
+  const drawer = function_explorer_element("aside", "function-explorer__drawer");
+  drawer.setAttribute("role", "dialog");
+  drawer.setAttribute("aria-modal", "true");
+  drawer.setAttribute("aria-hidden", "true");
+  drawer.setAttribute("aria-label", "Function details");
+  overlay.hidden = true;
+  drawer.hidden = true;
+
+  const closeDrawer = () => {
+    overlay.hidden = true;
+    drawer.hidden = true;
+    drawer.classList.remove("function-explorer__drawer--open");
+    drawer.setAttribute("aria-hidden", "true");
+  };
+
+  const openDrawer = (entry) => {
+    drawer.replaceChildren();
+
+    const closeButton = function_explorer_element(
+      "button",
+      "function-explorer__drawer-close",
+      "Close"
+    );
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Close function details");
+    closeButton.addEventListener("click", closeDrawer);
+
+    const title = function_explorer_element("h2", "", entry.name);
+    const tags = function_explorer_element("div", "function-explorer__tags");
+    tags.append(
+      function_explorer_tag(entry.language),
+      function_explorer_tag(
+        entry.translation_status === "ready" ? "Ready" : "Needs translation",
+        entry.translation_status === "ready"
+          ? "function-explorer__tag--ready"
+          : "function-explorer__tag--translation"
+      ),
+      function_explorer_tag(entry.output_type)
+    );
+
+    const descriptionHeading = function_explorer_element("h3", "", "Description");
+    const description = function_explorer_element("p", "", entry.description);
+    const requirementsHeading = function_explorer_element(
+      "h3",
+      "",
+      "Operational requirements"
+    );
+    const requirements = function_explorer_element("p", "");
+    requirements.append("Implementation: ", function_explorer_element(
+      "code",
+      "",
+      entry.code_file
+    ));
+
+    const fieldsHeading = function_explorer_element("h3", "", "Required input fields");
+    const fieldList = function_explorer_element("ul", "function-explorer__field-list");
+    for (const field of entry.required_fields || []) {
+      fieldList.append(function_explorer_element("li", "", field));
+    }
+
+    const previewHeading = function_explorer_element("h3", "", "Sample output");
+    const preview = document.createElement("img");
+    preview.className = "function-explorer__preview";
+    preview.src = `data/precomputed_outputs/${encodeURIComponent(entry.id)}.png`;
+    preview.alt = `Pre-computed sample output for ${entry.name}`;
+    preview.loading = "lazy";
+    const previewUnavailable = function_explorer_element(
+      "p",
+      "function-explorer__preview-unavailable",
+      "A pre-computed preview is not available for this function."
+    );
+    previewUnavailable.hidden = true;
+    preview.addEventListener("error", () => {
+      preview.hidden = true;
+      previewUnavailable.hidden = false;
+    });
+
+    const citationHeading = function_explorer_element(
+      "h3",
+      "",
+      "Citation & methodology"
+    );
+    const citation = function_explorer_element(
+      "p",
+      "function-explorer__citation",
+      entry.citation || "No citation supplied."
+    );
+
+    drawer.append(
+      closeButton,
+      title,
+      tags,
+      descriptionHeading,
+      description,
+      requirementsHeading,
+      requirements,
+      fieldsHeading,
+      fieldList,
+      previewHeading,
+      preview,
+      previewUnavailable,
+      citationHeading,
+      citation,
+      function_explorer_issue_link(entry, "function-explorer__issue-link")
+    );
+    overlay.hidden = false;
+    drawer.hidden = false;
+    drawer.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => {
+      drawer.classList.add("function-explorer__drawer--open");
+      closeButton.focus();
+    });
+  };
+
+  overlay.addEventListener("click", closeDrawer);
+  const closeOnEscape = (event) => {
+    if (event.key === "Escape" && !drawer.hidden) closeDrawer();
+  };
+  document.addEventListener("keydown", closeOnEscape);
+  invalidation.then(() => document.removeEventListener("keydown", closeOnEscape));
+
+  for (const entry of function_explorer_matches) {
+    const card = function_explorer_element("article", "function-explorer__card");
+    const title = function_explorer_element("h3", "", entry.name);
+    const description = function_explorer_element("p", "", entry.description);
+    const tags = function_explorer_element("div", "function-explorer__tags");
+    tags.append(
+      function_explorer_tag(entry.language),
+      function_explorer_tag(
+        entry.translation_status === "ready" ? "Ready" : "Needs translation",
+        entry.translation_status === "ready"
+          ? "function-explorer__tag--ready"
+          : "function-explorer__tag--translation"
+      )
+    );
+
+    const detailsButton = function_explorer_element(
+      "button",
+      "function-explorer__details-button",
+      "View details"
+    );
+    detailsButton.type = "button";
+    detailsButton.addEventListener("click", () => openDrawer(entry));
+
+    card.append(
+      title,
+      description,
+      tags,
+      detailsButton,
+      function_explorer_issue_link(entry, "function-explorer__card-link")
+    );
+    grid.append(card);
+  }
+
+  catalog.append(grid, overlay, drawer);
+  return catalog;
+}
+```
+
+</div>

@@ -8,8 +8,9 @@ website:
     left:
       - href: data_intake.qmd
         text: Data Intake
+      - href: function_explorer.qmd
+        text: Function Explorer
 
 format:
   html:
     toc: true
-
