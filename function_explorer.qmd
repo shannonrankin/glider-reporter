@@ -1,5 +1,7 @@
 ---
 title: "Function Explorer"
+execute:
+  echo: false
 format:
   html:
     theme:
@@ -25,12 +27,16 @@ resources:
 
 <div class="function-explorer__filters">
 
+<div class="function-explorer__search">
+
 ```{ojs}
 viewof function_explorer_search = Inputs.text({
   label: "Keyword search",
   placeholder: "Search titles, descriptions, or keywords"
 })
 ```
+
+</div>
 
 ```{ojs}
 function_explorer_registry = JSON.parse(
@@ -48,34 +54,77 @@ function_explorer_standard_fields = [
   "oxygen"
 ]
 
-function_explorer_available_fields = Array.from(new Set([
-  ...function_explorer_standard_fields,
-  ...function_explorer_registry.flatMap((entry) => entry.required_fields || [])
-])).sort()
-```
+function_explorer_chip_input = (
+  options,
+  {label, multiple = false, value, modifier}
+) => {
+  const form = function_explorer_element(
+    "form",
+    `function-explorer__chip-filter function-explorer__chip-filter--${modifier}`
+  );
+  const fieldset = function_explorer_element("fieldset", "");
+  const legend = function_explorer_element("legend", "", label);
+  const chips = function_explorer_element("div", "function-explorer__chips");
+  let selected = multiple ? [...value] : value;
 
-```{ojs}
-viewof function_explorer_required_fields = Inputs.select(
-  function_explorer_available_fields,
-  {
-    label: "Required fields",
-    multiple: true,
-    value: []
+  const update = () => {
+    for (const button of chips.querySelectorAll("button")) {
+      const active = multiple
+        ? selected.includes(button.value)
+        : selected === button.value;
+      button.classList.toggle("function-explorer__chip--active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+    form.value = multiple ? [...selected] : selected;
+  };
+
+  for (const option of options) {
+    const button = function_explorer_element(
+      "button",
+      "function-explorer__chip",
+      option
+    );
+    button.type = "button";
+    button.value = option;
+    button.addEventListener("click", () => {
+      if (multiple) {
+        selected = selected.includes(option)
+          ? selected.filter((item) => item !== option)
+          : [...selected, option];
+      } else {
+        selected = option;
+      }
+      update();
+      form.dispatchEvent(new Event("input", {bubbles: true}));
+    });
+    chips.append(button);
   }
+
+  fieldset.append(legend, chips);
+  form.append(fieldset);
+  update();
+  return form;
+}
+```
+
+```{ojs}
+viewof function_explorer_required_fields = function_explorer_chip_input(
+  function_explorer_standard_fields,
+  {label: "Required fields", multiple: true, value: [], modifier: "fields"}
 )
 ```
 
 ```{ojs}
-viewof function_explorer_language = Inputs.select(
+viewof function_explorer_language = function_explorer_chip_input(
   ["All", "R", "Python", "Quarto", "MATLAB", "Julia", "Pseudo-code"],
-  {label: "Language", value: "All"}
+  {label: "Language", value: "All", modifier: "language"}
 )
 ```
 
 ```{ojs}
-viewof function_explorer_output_type = Inputs.select(
+viewof function_explorer_output_type = function_explorer_chip_input(
   ["All", "Figure/Plot", "Table", "Summary Text"],
-  {label: "Output type", value: "All"}
+  {label: "Output type", value: "All", modifier: "output"}
 )
 ```
 
@@ -112,11 +161,11 @@ function_explorer_element = (tagName, className, text) => {
   return element;
 }
 
-function_explorer_issue_link = (entry, className) => {
+function_explorer_issue_link = (entry, className, text) => {
   const link = function_explorer_element(
     "a",
     className,
-    "View build history or contribute an alternative language version on GitHub"
+    text || "View build history or contribute an alternative language version on GitHub"
   );
   link.href = entry.issue_url;
   link.target = "_blank";
@@ -173,16 +222,22 @@ function_explorer_catalog = {
   const openDrawer = (entry) => {
     drawer.replaceChildren();
 
+    const header = function_explorer_element(
+      "header",
+      "function-explorer__drawer-header"
+    );
     const closeButton = function_explorer_element(
       "button",
       "function-explorer__drawer-close",
-      "Close"
+      "✕ Close"
     );
     closeButton.type = "button";
     closeButton.setAttribute("aria-label", "Close function details");
     closeButton.addEventListener("click", closeDrawer);
 
     const title = function_explorer_element("h2", "", entry.name);
+    header.append(title, closeButton);
+    const body = function_explorer_element("div", "function-explorer__drawer-body");
     const tags = function_explorer_element("div", "function-explorer__tags");
     tags.append(
       function_explorer_tag(entry.language),
@@ -243,9 +298,7 @@ function_explorer_catalog = {
       entry.citation || "No citation supplied."
     );
 
-    drawer.append(
-      closeButton,
-      title,
+    body.append(
       tags,
       descriptionHeading,
       description,
@@ -258,8 +311,13 @@ function_explorer_catalog = {
       previewUnavailable,
       citationHeading,
       citation,
-      function_explorer_issue_link(entry, "function-explorer__issue-link")
+      function_explorer_issue_link(
+        entry,
+        "function-explorer__issue-link",
+        "View Build History on GitHub"
+      )
     );
+    drawer.append(header, body);
     overlay.hidden = false;
     drawer.hidden = false;
     drawer.setAttribute("aria-hidden", "false");
@@ -270,6 +328,7 @@ function_explorer_catalog = {
   };
 
   overlay.addEventListener("click", closeDrawer);
+  drawer.addEventListener("click", (event) => event.stopPropagation());
   const closeOnEscape = (event) => {
     if (event.key === "Escape" && !drawer.hidden) closeDrawer();
   };

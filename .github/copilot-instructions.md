@@ -98,7 +98,7 @@
 4. **GliderDAC / ERDDAP Modal Guidance:** Display a non-blocking UI alert advising users to pre-filter ERDDAP queries due to browser CORS and network speed constraints.
 
 ## Interactive Function Explorer Architecture (`function_explorer.qmd`)
-1. **Catalog Rendering:** Dynamically render functions from `functions/registry.json` using ObservableJS (`{ojs}`) inputs (search bar, multi-select dropdowns for required fields, language, and output type).
+1. **Catalog Rendering:** Dynamically render functions from `functions/registry.json` using ObservableJS (`{ojs}`) inputs (search bar and visible filter chips for required fields, language, and output type).
 2. **Slide-Out Metadata Drawer:** Use pure CSS/OJS modal/drawer components defined in `styles/function_explorer.scss` to display detailed function metadata without leaving the page.
 3. **Pre-Computed Asset Previews:** Display pre-rendered sample outputs from `data/precomputed_outputs/` in the drawer/cards so users can view expected output figures and tables statically on GitHub Pages.
 4. **Issue Link Integration:** Every function card/drawer MUST contain a direct hyperlink to its originating GitHub Issue (`issue_url`), encouraging users to review build history or contribute alternative language versions.
@@ -119,3 +119,10 @@
 2. **Citation Standards:** `references.qmd` dynamically aggregates citation strings from `functions/registry.json` and formats bibliography entries cleanly.
 3. **AI Governance Statement:** Include explicit attribution and transparency metadata regarding AI agent usage (GitHub Copilot, LLM prompt workflows) in development and maintenance.
 4. **Isolated SCSS Scope:** Main layout styles belong in `styles/main.scss`, preserving isolated SCSS modules for individual dashboard pages.
+
+## Global Code Chunk Execution & Interactive UI Standards
+1. Add `execute: echo: false` to every site `.qmd` page so raw OJS, Python, and R chunk code does not render inline.
+2. Place keyword search controls on a full-width row above related filters.
+3. Present finite filter choices as visible, accessible chip buttons with distinct selected states and checkmarks.
+4. Build detail drawers as fixed viewport panels with sticky headers, independently scrollable bodies, and non-blocking backdrop dismissal.
+5. Keep primary drawer actions clearly styled and ensure clicks or scrolling inside a drawer never dismiss it.

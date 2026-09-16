@@ -1,6 +1,8 @@
 ---
 title: "Glider Reporter"
 subtitle: "A guide to building reproducible reports for oceanographic gliders"
+execute:
+  echo: false
 ---
 
 Glider Reporter is a client-side Quarto toolkit for turning mapped glider data

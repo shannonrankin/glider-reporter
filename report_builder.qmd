@@ -1,5 +1,7 @@
 ---
 title: "Interactive Report Builder"
+execute:
+  echo: false
 format:
   html:
     theme:

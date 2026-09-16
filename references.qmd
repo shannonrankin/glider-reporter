@@ -1,5 +1,7 @@
 ---
 title: "References & AI Governance"
+execute:
+  echo: false
 resources:
   - functions/registry.json
 ---
