@@ -6,12 +6,20 @@ website:
   title: "Glider Reporter"
   navbar:
     left:
+      - href: index.qmd
+        text: Home / Guide
       - href: data_intake.qmd
         text: Data Intake
       - href: function_explorer.qmd
         text: Function Explorer
       - href: report_builder.qmd
         text: Report Builder
+      - href: references.qmd
+        text: References & AI Governance
+    right:
+      - icon: github
+        href: https://github.com/shannonrankin/glider-reporter
+        aria-label: Glider Reporter on GitHub
 
 format:
   html:
