@@ -81,3 +81,9 @@
    - Standardize time fields to ISO8601 strings (`YYYY-MM-DDTHH:MM:SSZ`).
    - If required fields (`latitude`, `longitude`, `time`) fail format checks, display an interactive confirmation prompt that forces user acknowledgment before building reports.
 4. **GliderDAC / ERDDAP Modal Guidance:** Display a non-blocking UI alert advising users to pre-filter ERDDAP queries due to browser CORS and network speed constraints.
+
+## Interactive Function Explorer Architecture (`function_explorer.qmd`)
+1. **Catalog Rendering:** Dynamically render functions from `functions/registry.json` using ObservableJS (`{ojs}`) inputs (search bar, multi-select dropdowns for required fields, language, and output type).
+2. **Slide-Out Metadata Drawer:** Use pure CSS/OJS modal/drawer components defined in `styles/function_explorer.scss` to display detailed function metadata without leaving the page.
+3. **Pre-Computed Asset Previews:** Display pre-rendered sample outputs from `data/precomputed_outputs/` in the drawer/cards so users can view expected output figures and tables statically on GitHub Pages.
+4. **Issue Link Integration:** Every function card/drawer MUST contain a direct hyperlink to its originating GitHub Issue (`issue_url`), encouraging users to review build history or contribute alternative language versions.
