@@ -1,0 +1,8 @@
+field_name,description,units
+Glider-ID,Unique glider deployment identifier,text
+Lat Deg,Latitude in decimal degrees,degrees_north
+Lon-Deg,Longitude in decimal degrees,degrees_east
+ISO-Time,UTC observation timestamp in ISO8601 format,UTC ISO8601
+Temp_C,Seawater temperature,degrees Celsius
+Salinity PPT,Practical salinity,PSU
+Depth (m),Pressure-derived depth below sea surface,metres
