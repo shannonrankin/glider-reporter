@@ -1,5 +1,7 @@
 ---
 title: "Data Intake & Field Matching"
+execute:
+  echo: false
 format:
   html:
     theme:
@@ -19,7 +21,20 @@ format:
 4. Download reusable mappings to `output/`, or import a previously saved `glider_field_mapping.json`.
 :::
 
+<details class="data-intake__code-drawer">
+<summary>Show Page Code / Logic</summary>
+
+The complete ObservableJS logic is available in
+[`data_intake.qmd`](https://github.com/shannonrankin/glider-reporter/blob/main/data_intake.qmd)
+for inspection or copying.
+
+</details>
+
 ## 1. Choose a data source
+
+Behind the scenes, the selected source is loaded entirely in your browser and
+its headers are normalized to `snake_case`. **Next:** choose one source below
+and select, upload, or identify a dataset.
 
 ```{ojs}
 viewof data_intake_source = Inputs.radio(
@@ -37,6 +52,9 @@ viewof data_intake_source = Inputs.radio(
 
 ### Sample dataset
 
+**What is this?** Pre-loaded example oceanographic glider datasets (OG1.0
+standard or Hackathon format) for instant testing.
+
 ```{ojs}
 viewof data_intake_sample = Inputs.select(
   new Map([
@@ -52,6 +70,9 @@ viewof data_intake_sample = Inputs.select(
 
 ### Upload custom CSV
 
+**What is this?** Parse local oceanographic CSV files securely in your browser
+without sending data to an external server.
+
 ```{ojs}
 viewof data_intake_upload = Inputs.file({
   label: "CSV file",
@@ -65,6 +86,9 @@ Files stay in your browser. Headers are normalized to strict `snake_case`.
 <div class="data-intake__card">
 
 ### GliderDAC / ERDDAP
+
+**What is this?** Stream public dataset records directly from IOOS GliderDAC or
+ERDDAP servers via dataset ID or REST API URL.
 
 ```{ojs}
 viewof data_intake_erddap_input = Inputs.text({
@@ -241,17 +265,52 @@ data_intake_columns = data_intake_loaded.rows.length > 0
 
 ```{ojs}
 data_intake_source_status = {
-  const className = data_intake_loaded.error
-    ? "data-intake__status data-intake__status--error"
-    : "data-intake__status data-intake__status--success";
-  const message = data_intake_loaded.error
-    ? data_intake_loaded.error
-    : `${data_intake_loaded.rows.length.toLocaleString()} rows loaded from ${data_intake_loaded.name}.`;
-  return html`<div class=${className}>${message}</div>`;
+  const rowCount = data_intake_loaded.rows.length;
+  const columnCount = data_intake_columns.length;
+  const normalizationMessage = columnCount === 0
+    ? "No column headers detected"
+    : `✓ All ${columnCount} column header${columnCount === 1 ? "" : "s"} normalized to snake_case`;
+  return html`<section class="data-intake__dataset-status" aria-live="polite">
+    <h3>Loaded Datasets & Status</h3>
+    <dl>
+      <div>
+        <dt>Active dataset</dt>
+        <dd>${data_intake_loaded.name}</dd>
+      </div>
+      <div>
+        <dt>Records</dt>
+        <dd>${rowCount.toLocaleString()} rows loaded</dd>
+      </div>
+    </dl>
+    ${data_intake_loaded.error
+      ? html`<div class="data-intake__status data-intake__status--error">
+          ${data_intake_loaded.error}
+        </div>`
+      : html`<div class="data-intake__normalization">${normalizationMessage}</div>`}
+    <div class="data-intake__columns">
+      <strong>Detected columns</strong>
+      <div class="data-intake__badge-list">
+        ${columnCount > 0
+          ? data_intake_columns.map(
+              (column) => html`<code class="data-intake__badge">${column}</code>`
+            )
+          : html`<span>None</span>`}
+      </div>
+    </div>
+    <p class="data-intake__next-step">
+      ${data_intake_loaded.error
+        ? "→ Resolve the data source message above before continuing."
+        : "→ Proceed to Step 2 to map required latitude, longitude, and time fields."}
+    </p>
+  </section>`;
 }
 ```
 
 ## 2. Match fields to OG1.0
+
+The page suggests matches from normalized column names and any imported mapping
+file. **Next:** review every suggestion, map at least `latitude`, `longitude`,
+and `time`, then optionally download the mapping for reuse.
 
 ```{ojs}
 data_intake_standard_fields = [
@@ -417,6 +476,10 @@ other report exports.
 
 ## 3. Validate required fields
 
+The mapped values are checked for numeric coordinate ranges and ISO8601
+timestamps. **Next:** correct missing mappings; if red flags remain, review
+them and use the acknowledgment button to unlock report generation.
+
 ```{ojs}
 data_intake_canonical_time = (value) => {
   if (value === null || value === undefined || String(value).trim() === "") return null;
@@ -516,12 +579,42 @@ data_intake_red_flags = {
 ```
 
 ```{ojs}
-viewof data_intake_acknowledged = Inputs.toggle({
-  label: "Acknowledge & Proceed to Dashboard",
-  value: false,
-  disabled: data_intake_validation.issues.length === 0
-    || data_intake_validation.missingRequired.length > 0
-})
+viewof data_intake_acknowledged = {
+  let acknowledged = false;
+  const control = document.createElement("div");
+  const button = document.createElement("button");
+  const requiresAcknowledgment = data_intake_validation.issues.length > 0;
+  const canAcknowledge = data_intake_loaded.rows.length > 0
+    && requiresAcknowledgment
+    && data_intake_validation.missingRequired.length === 0;
+
+  button.type = "button";
+  button.className = "data-intake__button data-intake__button--proceed";
+  button.disabled = !canAcknowledge;
+  button.setAttribute("aria-pressed", "false");
+  button.textContent = requiresAcknowledgment
+    ? "Acknowledge & Proceed to Dashboard"
+    : "No Acknowledgment Required";
+  button.addEventListener("click", () => {
+    acknowledged = !acknowledged;
+    button.classList.toggle(
+      "data-intake__button--acknowledged",
+      acknowledged
+    );
+    button.setAttribute("aria-pressed", String(acknowledged));
+    button.textContent = acknowledged
+      ? "Acknowledged & Unlocked"
+      : "Acknowledge & Proceed to Dashboard";
+    control.dispatchEvent(new Event("input", {bubbles: true}));
+  });
+  control.append(button);
+  Object.defineProperty(control, "value", {
+    get() {
+      return acknowledged;
+    }
+  });
+  return control;
+}
 ```
 
 ```{ojs}
