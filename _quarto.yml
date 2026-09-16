@@ -10,6 +10,8 @@ website:
         text: Data Intake
       - href: function_explorer.qmd
         text: Function Explorer
+      - href: report_builder.qmd
+        text: Report Builder
 
 format:
   html:
