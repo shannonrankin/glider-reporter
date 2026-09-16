@@ -344,7 +344,9 @@ data_intake_source_status = {
     <p class="data-intake__next-step">
       ${data_intake_loaded.error
         ? "→ Resolve the data source message above before continuing."
-        : "→ Proceed to Step 2 to map required latitude, longitude, and time fields."}
+        : rowCount === 0
+          ? "→ Select or load a dataset to begin."
+          : "→ Proceed to Step 2 to map required latitude, longitude, and time fields."}
     </p>
   </section>`;
 }
@@ -690,17 +692,29 @@ data_intake_dashboard_status = {
   const hasRows = data_intake_loaded.rows.length > 0;
   const hasNoLoadError = data_intake_loaded.error === null;
   const hasRequiredMappings = data_intake_validation.missingRequired.length === 0;
+  const validationAccepted = data_intake_validation.issues.length === 0
+    || data_intake_acknowledged;
   const mayProceed = hasRows
     && hasNoLoadError
     && hasRequiredMappings
-    && (data_intake_validation.issues.length === 0 || data_intake_acknowledged);
+    && validationAccepted;
+  const lockedReasons = [
+    ...(!hasRows ? ["Load a dataset with at least one valid row."] : []),
+    ...(!hasNoLoadError ? [`Resolve the data source error: ${data_intake_loaded.error}`] : []),
+    ...(!hasRequiredMappings
+      ? [`Map required fields: ${data_intake_validation.missingRequired.join(", ")}.`]
+      : []),
+    ...(hasRows && hasRequiredMappings && !validationAccepted
+      ? ["Review and acknowledge the coordinate or timestamp red flags."]
+      : [])
+  ];
   return mayProceed
     ? html`<div class="data-intake__status data-intake__status--success">
         <strong>Dashboard Generation Unlocked</strong>
       </div>`
     : html`<div class="data-intake__status data-intake__status--locked">
         <strong>Dashboard Generation Locked</strong>
-        <div>Select a valid dataset and map required fields to continue.</div>
+        <ul>${lockedReasons.map((reason) => html`<li>${reason}</li>`)}</ul>
       </div>`;
 }
 ```

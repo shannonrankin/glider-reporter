@@ -97,9 +97,13 @@ class DataIntakePageTests(unittest.TestCase):
             "data_intake_loaded.error === null",
             "data_intake_loaded.rows.length > 0",
             "data_intake_validation.missingRequired.length === 0",
-            "data_intake_validation.issues.length === 0 || data_intake_acknowledged",
+            "const validationAccepted = data_intake_validation.issues.length === 0",
             "Dashboard Generation Unlocked",
             "Dashboard Generation Locked",
+            "Load a dataset with at least one valid row.",
+            "Resolve the data source error:",
+            "Map required fields:",
+            "Review and acknowledge the coordinate or timestamp red flags.",
         ):
             self.assertIn(expected, self.page)
 
