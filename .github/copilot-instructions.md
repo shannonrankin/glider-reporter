@@ -36,6 +36,15 @@
 4. **Interactive Action Elements:** Use styled HTML `<button>` elements with clear click states rather than default micro-toggles for critical user acknowledgments and workflow navigation.
 
 ## Global Quarto & OJS Coding Standards
+## Interactive Data Intake State & Validation Standards
+1. **Explicit Data Source Selection:** Data sources must NOT auto-load datasets by default. Initial page state must require explicit user action (e.g., clicking a button or uploading a file) to populate state.
+2. **Clear & Reset Capabilities:** Provide an explicit "Clear / Reset Dataset" action that resets the active dataset, clears uploaded files, removes mapped dropdown selections, and locks the downstream dashboard generation status.
+3. **Field Mapping Warnings:** Render explicit yellow warning badges for standard OG1.0 fields left unmapped, ensuring users visually notice missing optional mappings.
+4. **Strict Unlock Safeguards:** The "Dashboard Generation Unlocked" state MUST require:
+   - At least 1 valid row loaded from an active dataset.
+   - Zero errors in CSV parsing / source reading.
+   - All 3 mandatory fields (`latitude`, `longitude`, `time`) mapped.
+   - Active user acknowledgment if coordinate/timestamp red flags are detected.
 
 - **OJS Scope & Reactivity**:
   - Keep all reactive OJS state variables unique across files to prevent cross-page state leaking in Quarto multi-page builds.
