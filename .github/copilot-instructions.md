@@ -87,3 +87,9 @@
 2. **Slide-Out Metadata Drawer:** Use pure CSS/OJS modal/drawer components defined in `styles/function_explorer.scss` to display detailed function metadata without leaving the page.
 3. **Pre-Computed Asset Previews:** Display pre-rendered sample outputs from `data/precomputed_outputs/` in the drawer/cards so users can view expected output figures and tables statically on GitHub Pages.
 4. **Issue Link Integration:** Every function card/drawer MUST contain a direct hyperlink to its originating GitHub Issue (`issue_url`), encouraging users to review build history or contribute alternative language versions.
+
+## Interactive Report Builder & Bundle Exporter Architecture (`report_builder.qmd`)
+1. **Smart Function Filtering:** Compare active dataset schema (`mapped_fields`) against `required_fields` in `functions/registry.json`. Automatically filter selectable functions to match available data fields.
+2. **Dynamic Preview Engine:** Use ObservableJS (`{ojs}`) reactive state to render a real-time markdown text/HTML preview as users toggle and reorder function modules.
+3. **Client-Side ZIP Bundling:** Generate downloadable zip packages directly in the browser using client-side JavaScript (`JSZip`). The bundle MUST include the output report file (`.qmd`/`.rmd`/`.py`), required function source scripts, data cleaning helper scripts, and user field mappings (`glider_field_mapping.json`).
+4. **Scoped Styles:** Keep layout and control bar styling strictly isolated within `styles/report_builder.scss`.
