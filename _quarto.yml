@@ -1,26 +1,39 @@
-project:
-  type: website
-  output-dir: _site
+name: Publish Quarto Website
 
-website:
-  title: "Glider Reporter"
-  navbar:
-    left:
-      - href: index.qmd
-        text: Home / Guide
-      - href: data_intake.qmd
-        text: Data Intake
-      - href: function_explorer.qmd
-        text: Function Explorer
-      - href: report_builder.qmd
-        text: Report Builder
-      - href: references.qmd
-        text: References & AI Governance
-    right:
-      - icon: github
-        href: https://github.com/shannonrankin/glider-reporter
-        aria-label: Glider Reporter on GitHub
+on:
+  push:
+    branches: [ main ]
 
-format:
-  html:
-    toc: true
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render Quarto Site
+        run: quarto render
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
