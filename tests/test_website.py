@@ -31,6 +31,37 @@ class WebsiteDocumentationTests(unittest.TestCase):
             "https://github.com/shannonrankin/glider-reporter", self.project
         )
 
+    def test_all_site_pages_hide_code_chunks(self):
+        for page_name in (
+            "index.qmd",
+            "data_intake.qmd",
+            "function_explorer.qmd",
+            "report_builder.qmd",
+            "references.qmd",
+        ):
+            page = (REPOSITORY_ROOT / page_name).read_text(encoding="utf-8")
+            frontmatter = page.split("---", 2)[1]
+            self.assertIn(
+                "execute:\n  echo: false",
+                frontmatter,
+                f"{page_name} must hide executable chunk source",
+            )
+
+    def test_ojs_pages_provide_source_inspection_controls(self):
+        for page_name in (
+            "data_intake.qmd",
+            "function_explorer.qmd",
+            "report_builder.qmd",
+            "references.qmd",
+        ):
+            page = (REPOSITORY_ROOT / page_name).read_text(encoding="utf-8")
+            self.assertIn("<details", page)
+            self.assertRegex(page, r"<summary>(Show Page Code / Logic|View Source Code)</summary>")
+            self.assertIn(
+                f"https://github.com/shannonrankin/glider-reporter/blob/main/{page_name}",
+                page,
+            )
+
     def test_home_documents_primary_user_workflows(self):
         for expected in (
             "## Build a report in three steps",
