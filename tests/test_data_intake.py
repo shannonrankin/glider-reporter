@@ -15,6 +15,7 @@ class DataIntakePageTests(unittest.TestCase):
             "data/sample/og10_standard/glider_og10_data.csv",
             "data/sample/custom_hackathon/glider_hackathon_data.csv",
             "data/sample/custom_hackathon/glider_hackathon_fieldDefinitions.csv",
+            "Load Sample Dataset",
             "Upload Custom CSV",
             "GliderDAC / ERDDAP",
         ):
@@ -46,7 +47,7 @@ class DataIntakePageTests(unittest.TestCase):
 
     def test_source_cards_explain_each_option(self):
         for expected in (
-            "Pre-loaded example oceanographic glider datasets",
+            "Built-in example oceanographic glider datasets",
             "Parse local oceanographic CSV files securely in your browser",
             "Stream public dataset records directly from IOOS GliderDAC",
         ):
@@ -69,6 +70,51 @@ class DataIntakePageTests(unittest.TestCase):
             self.page,
         )
         self.assertIn("Acknowledged & Unlocked", self.page)
+
+    def test_page_has_empty_initial_state_and_reset_control(self):
+        for expected in (
+            'name: "No dataset selected"',
+            "data_intake_source_control.value = null",
+            "data_intake_upload_control",
+            "data_intake_erddap_control.value =",
+            "data_intake_mapping_file_control",
+            "Clear Dataset",
+        ):
+            self.assertIn(expected, self.page)
+        self.assertNotIn('{label: "Data source", value: "sample"}', self.page)
+
+    def test_page_warns_for_unmapped_optional_fields(self):
+        for expected in (
+            "data_intake_optional_fields",
+            "data_intake_optional_warnings",
+            "Optional OG1.0 Fields Not Mapped",
+            "data-intake__optional-warning",
+        ):
+            self.assertIn(expected, self.page)
+
+    def test_dashboard_unlock_has_strict_guardrails(self):
+        for expected in (
+            "data_intake_loaded.error === null",
+            "data_intake_loaded.rows.length > 0",
+            "data_intake_validation.missingRequired.length === 0",
+            "data_intake_validation.issues.length === 0 || data_intake_acknowledged",
+            "Dashboard Generation Unlocked",
+            "Dashboard Generation Locked",
+        ):
+            self.assertIn(expected, self.page)
+
+    def test_copilot_instructions_include_data_intake_standards(self):
+        instructions = (
+            REPOSITORY_ROOT / ".github" / "copilot-instructions.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "Interactive Data Intake State & Validation Standards",
+            "Explicit Data Source Selection",
+            "Clear & Reset Capabilities",
+            "Field Mapping Warnings",
+            "Strict Unlock Safeguards",
+        ):
+            self.assertIn(expected, instructions)
 
     def test_quarto_project_has_static_output_directory(self):
         project = (REPOSITORY_ROOT / "_quarto.yml").read_text(encoding="utf-8")
