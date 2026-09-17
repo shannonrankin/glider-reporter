@@ -4,11 +4,12 @@ project:
 
 
 website:
-  title: "Glider Reporter"
+  # title: "Glider Reporter"
   navbar:
+    logo: images/glider-reporter-logo.png
     left:
       - href: index.qmd
-        text: Home / Guide
+        text: Home
       - href: data_intake.qmd
         text: Data Intake
       - href: function_explorer.qmd
@@ -25,3 +26,4 @@ website:
 format:
   html:
     toc: true
+    css: styles/navbar.css
