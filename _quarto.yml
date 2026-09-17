@@ -2,6 +2,7 @@ project:
   type: website
   output-dir: _site
 
+
 website:
   title: "Glider Reporter"
   navbar:

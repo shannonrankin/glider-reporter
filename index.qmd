@@ -1,89 +1,98 @@
 ---
 title: "Glider Reporter"
 subtitle: "A guide to building reproducible reports for oceanographic gliders"
+
 execute:
   echo: false
+editor: 
+  markdown: 
+    wrap: 72
+
 ---
 
-Glider Reporter is a client-side Quarto toolkit for turning mapped glider data
-into reproducible report bundles. Your data stays in your browser while you use
-the website.
+Glider Reporter is a client-side Quarto toolkit for turning mapped
+glider data into reproducible report bundles. Your data stays in your
+browser while you use the website.
 
 ## Build a report in three steps
 
 ### 1. Upload data and map fields
 
-Open [Data Intake](./data_intake.qmd), choose a sample dataset or upload your
-CSV, and map its columns to the standard glider fields. Resolve or acknowledge
-validation warnings, then download `glider_field_mapping.json`.
+Open [Data Intake](./data_intake.qmd), choose a sample dataset or upload
+your CSV, and map its columns to the standard glider fields. Resolve or
+acknowledge validation warnings, then download
+`glider_field_mapping.json`.
 
 ### 2. Choose reporting functions
 
-Use the [Function Explorer](./function_explorer.qmd) to find plots, tables, and
-summaries that work with your mapped fields. Review each function's required
-fields, language, sample output, and source issue.
+Use the [Function Explorer](./function_explorer.qmd) to find plots,
+tables, and summaries that work with your mapped fields. Review each
+function's required fields, language, sample output, and source issue.
 
 ### 3. Build and download the report
 
-Open the [Report Builder](./report_builder.qmd), upload your field mapping,
-select and order compatible functions, and choose an output format. Review the
-preview, download the ZIP bundle, and place it in your local `output/`
-directory before extracting and running the report.
+Open the [Report Builder](./report_builder.qmd), upload your field
+mapping, select and order compatible functions, and choose an output
+format. Review the preview, download the ZIP bundle, and place it in
+your local `output/` directory before extracting and running the report.
 
 ## Contribute a reporting function
 
 New analysis and visualization ideas are welcome.
 
-1. Open the
-   [Function submission form](https://github.com/shannonrankin/glider-reporter/issues/new?template=function_submission.yml).
-2. Describe the function, its required data fields, output type, execution
-   requirements, and citation.
-3. Paste or link the code. R, Python, Quarto, MATLAB, Julia, other languages,
-   and conceptual pseudo-code are welcome.
-4. Submit the issue so maintainers and contributors can discuss, test, and add
-   the function to the registry.
+1.  Open the [Function submission
+    form](https://github.com/shannonrankin/glider-reporter/issues/new?template=function_submission.yml).
+2.  Describe the function, its required data fields, output type,
+    execution requirements, and citation.
+3.  Paste or link the code. R, Python, Quarto, MATLAB, Julia, other
+    languages, and conceptual pseudo-code are welcome.
+4.  Submit the issue so maintainers and contributors can discuss, test,
+    and add the function to the registry.
 
 ## Translate an existing function
 
 Translations make reporting methods reusable across the community.
 
-1. In the [Function Explorer](./function_explorer.qmd), open a function and
-   follow its GitHub Issue link to coordinate the translation.
-2. Identify the source language (such as MATLAB, pseudo-code, R, or Python) and
-   the target language. R, Python, and Quarto are the supported report
-   languages.
-3. Preserve the method, required `snake_case` input fields, units, validation
-   behavior, output type, and original citation.
-4. Adapt dependencies and execution instructions for the target language.
-   Confirm the result accepts a cleaned dataframe and produces an
-   HTML-renderable plot, Markdown table, or summary.
-5. Add the translation to the source issue for review. Entries that are not yet
-   available in a supported language remain marked `needs_translation`.
+1.  In the [Function Explorer](./function_explorer.qmd), open a function
+    and follow its GitHub Issue link to coordinate the translation.
+2.  Identify the source language (such as MATLAB, pseudo-code, R, or
+    Python) and the target language. R, Python, and Quarto are the
+    supported report languages.
+3.  Preserve the method, required `snake_case` input fields, units,
+    validation behavior, output type, and original citation.
+4.  Adapt dependencies and execution instructions for the target
+    language. Confirm the result accepts a cleaned dataframe and
+    produces an HTML-renderable plot, Markdown table, or summary.
+5.  Add the translation to the source issue for review. Entries that are
+    not yet available in a supported language remain marked
+    `needs_translation`.
 
 ## Use this repository as a template
 
 ### Fork on GitHub
 
-1. Visit the
-   [Glider Reporter repository](https://github.com/shannonrankin/glider-reporter).
-2. Select **Fork**, choose an owner, and create the fork.
-3. Clone your fork and enter the project:
+1.  Visit the [Glider Reporter
+    repository](https://github.com/shannonrankin/glider-reporter).
 
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/glider-reporter.git
-   cd glider-reporter
-   ```
+2.  Select **Fork**, choose an owner, and create the fork.
 
-4. Customize the data, functions, and Quarto pages, then run `quarto preview`
-   to review the site locally.
+3.  Clone your fork and enter the project:
+
+    ``` bash
+    git clone https://github.com/YOUR-USERNAME/glider-reporter.git
+    cd glider-reporter
+    ```
+
+4.  Customize the data, functions, and Quarto pages, then run
+    `quarto preview` to review the site locally.
 
 ### Clone without forking
 
-```bash
+``` bash
 git clone https://github.com/shannonrankin/glider-reporter.git
 cd glider-reporter
 quarto preview
 ```
 
-Use a fork if you plan to keep your version on GitHub or contribute changes
-upstream. Use a direct clone for local exploration.
+Use a fork if you plan to keep your version on GitHub or contribute
+changes upstream. Use a direct clone for local exploration.
