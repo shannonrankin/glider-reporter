@@ -141,3 +141,12 @@
 3. Present finite filter choices as visible, accessible chip buttons with distinct selected states and checkmarks.
 4. Build detail drawers as fixed viewport panels with sticky headers, independently scrollable bodies, and non-blocking backdrop dismissal.
 5. Keep primary drawer actions clearly styled and ensure clicks or scrolling inside a drawer never dismiss it.
+
+## Multi-Format Binary Data Intake Guidelines (Quarto + Client-Side JS/Wasm)
+1. **Multi-Format Upload Support:** File upload components must accept `.csv`, `.rdata`, `.rda`, `.h5`, `.hdf5`, `.nc`, and `.netcdf` extensions.
+2. **Client-Side Binary File Parsing:**
+   - Parse standard CSV via browser-native string/D3 parsers.
+   - Parse NetCDF (`.nc`) files using client-side JavaScript NetCDF parsers (`netcdfjs`) or Pyodide/WebR WASM bindings.
+   - Parse HDF5 (`.h5`) files using `h5wasm` or Pyodide (`h5py`).
+   - Parse RData (`.rdata`/`.rda`) files via WebR or Pyodide (`rdata` / `pyreadr`).
+3. **Tabular Standard Extraction:** Extract 1D/2D dataset dimensions into flat row-column structures, automatically converting headers/variable names to strict `snake_case` before feeding into field-matching workflows.

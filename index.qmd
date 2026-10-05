@@ -10,9 +10,9 @@ editor:
 
 ---
 
-Glider Reporter is a client-side Quarto toolkit for turning mapped
+Glider Reporter is a Quarto toolkit for turning mapped
 glider data into reproducible report bundles. Your data stays in your
-browser while you use the website.
+browser while you use the website. You can also choose to fork this repository to create your own personal suite of functions & report bundles. 
 
 ## Build a report in three steps
 
@@ -84,7 +84,7 @@ Translations make reporting methods reusable across the community.
     ```
 
 4.  Customize the data, functions, and Quarto pages, then run
-    `quarto preview` to review the site locally.
+    `quarto preview` to review the site locally. 
 
 ### Clone without forking
 
