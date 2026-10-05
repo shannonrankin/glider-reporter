@@ -15,7 +15,7 @@ format:
 ::: {.callout-note}
 ## Before you begin
 
-1. Choose a built-in dataset, upload a CSV, or enter a GliderDAC/ERDDAP dataset ID or CSV URL.
+1. Choose a built-in dataset, upload a CSV, RData, HDF5, or NetCDF file, or enter a GliderDAC/ERDDAP dataset ID or CSV URL.
 2. Match each OG1.0 field to a normalized field in your dataset.
 3. Review any red flags. If any appear, acknowledge them before proceeding.
 4. Download reusable mappings to `output/`, or import a previously saved `glider_field_mapping.json`.
@@ -40,7 +40,7 @@ and select, upload, or identify a dataset.
 data_intake_source_control = Inputs.radio(
   new Map([
     ["Sample Dataset", "sample"],
-    ["Upload Custom CSV", "upload"],
+    ["Upload Custom Dataset", "upload"],
     ["GliderDAC / ERDDAP", "erddap"]
   ]),
   {label: "Data source"}
@@ -83,15 +83,15 @@ data_intake_load_sample = {
 </div>
 <div class="data-intake__card">
 
-### Upload custom CSV
+### Upload custom dataset
 
-**What is this?** Parse local oceanographic CSV files securely in your browser
-without sending data to an external server.
+**What is this?** Parse local oceanographic CSV, RData, HDF5, and NetCDF files
+securely in your browser without sending data to an external server.
 
 ```{ojs}
 data_intake_upload_control = Inputs.file({
-  label: "CSV file",
-  accept: ".csv,text/csv"
+  label: "Dataset file",
+  accept: ".csv,text/csv,.rdata,.rda,.h5,.hdf5,application/x-hdf,.nc,.netcdf,application/x-netcdf"
 })
 data_intake_upload_control.addEventListener("input", () => {
   if (data_intake_upload_control.value) {
@@ -102,7 +102,8 @@ data_intake_upload_control.addEventListener("input", () => {
 viewof data_intake_upload = data_intake_upload_control
 ```
 
-Files stay in your browser. Headers are normalized to strict `snake_case`.
+Files stay in your browser. Variables are flattened into rows when possible,
+and their names are normalized to strict `snake_case`.
 
 </div>
 <div class="data-intake__card">
@@ -191,6 +192,286 @@ data_intake_parse_csv = (text) => {
   });
 }
 
+data_intake_flatten_values = (value) => {
+  if (ArrayBuffer.isView(value)) return Array.from(value);
+  if (!Array.isArray(value)) return [value];
+  return value.flatMap((item) => data_intake_flatten_values(item));
+}
+
+data_intake_flatten_variables = (variables) => {
+  const warnings = [];
+  const supported = variables.flatMap((variable) => {
+    const shape = (variable.shape || []).map(Number);
+    if (shape.length > 2) {
+      warnings.push(
+        `"${variable.name}" was skipped because its ${shape.length}-dimensional grid cannot be flattened safely.`
+      );
+      return [];
+    }
+    const values = data_intake_flatten_values(variable.values);
+    const expectedLength = shape.length === 0
+      ? values.length
+      : shape.reduce((total, size) => total * size, 1);
+    if (values.length !== expectedLength) {
+      warnings.push(`"${variable.name}" was skipped because its stored shape does not match its values.`);
+      return [];
+    }
+    return [{...variable, shape, values}];
+  });
+  if (supported.length === 0) {
+    throw new Error(
+      "No tabular 1D or 2D variables could be extracted. Pre-select compatible variables or export a flat CSV."
+    );
+  }
+
+  const reference = supported.reduce((largest, variable) =>
+    variable.values.length > largest.values.length ? variable : largest
+  );
+  const rowCount = reference.values.length;
+  const referenceShape = reference.shape;
+  const included = supported.flatMap((variable) => {
+    if (variable.values.length === rowCount) return [variable];
+    if (variable.values.length === 1) {
+      return [{...variable, values: Array(rowCount).fill(variable.values[0])}];
+    }
+    if (referenceShape.length === 2 && variable.shape.length === 1) {
+      const [height, width] = referenceShape;
+      const dimensionIndex = Array.isArray(reference.dimensions)
+        && Array.isArray(variable.dimensions)
+        ? reference.dimensions.indexOf(variable.dimensions[0])
+        : -1;
+      if (dimensionIndex === 0 || (height !== width && variable.values.length === height)) {
+        return [{
+          ...variable,
+          values: variable.values.flatMap((value) => Array(width).fill(value))
+        }];
+      }
+      if (dimensionIndex === 1 || (height !== width && variable.values.length === width)) {
+        return [{
+          ...variable,
+          values: Array.from({length: rowCount}, (_, index) =>
+            variable.values[index % width]
+          )
+        }];
+      }
+      if (variable.values.length === height && height === width) {
+        warnings.push(
+          `"${variable.name}" was skipped because its unlabeled axis is ambiguous in a square 2D grid.`
+        );
+        return [];
+      }
+    }
+    warnings.push(
+      `"${variable.name}" was skipped because its dimensions do not align with the ${rowCount}-row table.`
+    );
+    return [];
+  });
+  const headers = data_intake_unique_headers(included.map((variable) => variable.name));
+  const rows = Array.from({length: rowCount}, (_, rowIndex) => {
+    const row = Object.create(null);
+    included.forEach((variable, columnIndex) => {
+      row[headers[columnIndex]] = variable.values[rowIndex];
+    });
+    return row;
+  });
+  return {rows, warnings};
+}
+
+data_intake_parse_hdf5 = async (upload) => {
+  const h5wasm = (await import(
+    "https://cdn.jsdelivr.net/npm/h5wasm@0.10.3/dist/esm/hdf5_hl.js"
+  )).default;
+  const {FS} = await h5wasm.ready;
+  const virtualPath = `/tmp/data_intake_${crypto.randomUUID()}.h5`;
+  FS.writeFile(virtualPath, new Uint8Array(await upload.arrayBuffer()));
+  let file;
+  try {
+    file = new h5wasm.File(virtualPath, "r");
+    const variables = [];
+    const visit = (group, path = "") => {
+      for (const key of group.keys()) {
+        const childPath = path ? `${path}/${key}` : key;
+        const child = file.get(childPath);
+        if (typeof child.keys === "function") {
+          visit(child, childPath);
+        } else if (Array.isArray(child.shape)) {
+          variables.push({
+            name: childPath,
+            shape: child.shape,
+            values: child.value
+          });
+        }
+      }
+    };
+    visit(file);
+    return data_intake_flatten_variables(variables);
+  } finally {
+    if (file) file.close();
+    FS.unlink(virtualPath);
+  }
+}
+
+data_intake_parse_netcdf = async (upload) => {
+  try {
+    const {NetCDFReader} = await import(
+      "https://cdn.jsdelivr.net/npm/netcdfjs@4.0.0/+esm"
+    );
+    const reader = new NetCDFReader(new Uint8Array(await upload.arrayBuffer()));
+    const variables = reader.variables.map((variable) => {
+      const dimensions = variable.dimensions.map((dimension) =>
+        typeof dimension === "number"
+          ? reader.dimensions[dimension]
+          : dimension
+      );
+      const shape = dimensions.map((dimension, index) => {
+        const dimensionId = variable.dimensions[index];
+        return dimensionId === reader.recordDimension.id
+          ? reader.recordDimension.length
+          : dimension.size;
+      });
+      const values = reader.getDataVariable(variable.name);
+      if (variable.type === "char" && shape.length > 0) {
+        const stringWidth = shape.at(-1);
+        const characters = data_intake_flatten_values(values);
+        return {
+          name: variable.name,
+          dimensions: dimensions.slice(0, -1).map((dimension) => dimension.name),
+          shape: shape.slice(0, -1),
+          values: Array.from(
+            {length: characters.length / stringWidth},
+            (_, index) => characters
+              .slice(index * stringWidth, (index + 1) * stringWidth)
+              .join("")
+              .replace(/\0+$/g, "")
+              .trim()
+          )
+        };
+      }
+      return {
+        name: variable.name,
+        dimensions: dimensions.map((dimension) => dimension.name),
+        shape,
+        values
+      };
+    });
+    return data_intake_flatten_variables(variables);
+  } catch (netcdfError) {
+    try {
+      const extracted = await data_intake_parse_hdf5(upload);
+      return {
+        ...extracted,
+        warnings: [
+          "This NetCDF file uses an HDF5 container and was extracted with the HDF5 parser.",
+          ...extracted.warnings
+        ]
+      };
+    } catch (hdf5Error) {
+      throw new Error(
+        `NetCDF extraction failed: ${netcdfError.message}. HDF5 fallback failed: ${hdf5Error.message}`
+      );
+    }
+  }
+}
+
+data_intake_get_webr = (() => {
+  let runtime;
+  return async () => {
+    if (!runtime) {
+      runtime = (async () => {
+        const {WebR} = await import("https://webr.r-wasm.org/v0.6.0/webr.mjs");
+        const webR = new WebR();
+        await webR.init();
+        return webR;
+      })();
+    }
+    return runtime;
+  };
+})()
+
+data_intake_parse_rdata = async (upload) => {
+  const webR = await data_intake_get_webr();
+  const token = crypto.randomUUID();
+  const inputPath = `/tmp/data_intake_${token}.RData`;
+  const outputPath = `/tmp/data_intake_${token}.csv`;
+  const manifestPath = `/tmp/data_intake_${token}.txt`;
+  await webR.FS.writeFile(inputPath, new Uint8Array(await upload.arrayBuffer()));
+  try {
+    await webR.evalRVoid(`
+      data_intake_environment <- new.env(parent = baseenv())
+      data_intake_names <- load("${inputPath}", envir = data_intake_environment)
+      data_intake_tabular <- data_intake_names[vapply(
+        data_intake_names,
+        function(name) {
+          value <- get(name, envir = data_intake_environment)
+          is.data.frame(value) || is.matrix(value)
+        },
+        logical(1)
+      )]
+      if (length(data_intake_tabular) == 0) {
+        stop("RData file does not contain a data frame or matrix.")
+      }
+      data_intake_sizes <- vapply(
+        data_intake_tabular,
+        function(name) NROW(get(name, envir = data_intake_environment)),
+        integer(1)
+      )
+      data_intake_selected <- data_intake_tabular[which.max(data_intake_sizes)]
+      data_intake_value <- as.data.frame(
+        get(data_intake_selected, envir = data_intake_environment)
+      )
+      utils::write.csv(data_intake_value, "${outputPath}", row.names = FALSE, na = "")
+      writeLines(c(data_intake_selected, data_intake_tabular), "${manifestPath}")
+    `);
+    const csv = new TextDecoder().decode(await webR.FS.readFile(outputPath));
+    const manifest = new TextDecoder()
+      .decode(await webR.FS.readFile(manifestPath))
+      .trim()
+      .split(/\r?\n/);
+    const warnings = manifest.length > 2
+      ? [`Extracted "${manifest[0]}", the largest data frame; other tabular objects were not combined.`]
+      : [];
+    return {rows: data_intake_parse_csv(csv), warnings};
+  } finally {
+    for (const path of [inputPath, outputPath, manifestPath]) {
+      try {
+        await webR.FS.unlink(path);
+      } catch {
+        // The output files may not exist when R reports an extraction error.
+      }
+    }
+  }
+}
+
+data_intake_upload_format = (upload) => {
+  const extension = upload.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+  if (extension === ".csv") return {kind: "csv", label: "CSV Text"};
+  if ([".nc", ".netcdf"].includes(extension)) {
+    return {kind: "netcdf", label: "NetCDF (OG1.0)"};
+  }
+  if ([".h5", ".hdf5"].includes(extension)) {
+    return {kind: "hdf5", label: "HDF5 Container"};
+  }
+  if ([".rdata", ".rda"].includes(extension)) {
+    return {kind: "rdata", label: "RData Frame"};
+  }
+  throw new Error("Unsupported file type. Choose CSV, RData, HDF5, or NetCDF.");
+}
+
+data_intake_parse_upload = async (upload) => {
+  const format = data_intake_upload_format(upload);
+  if (upload.size > 250 * 1024 * 1024) {
+    throw new Error("Files larger than 250 MB cannot be parsed safely in this browser page.");
+  }
+  const extracted = format.kind === "csv"
+    ? {rows: data_intake_parse_csv(await upload.text()), warnings: []}
+    : format.kind === "netcdf"
+      ? await data_intake_parse_netcdf(upload)
+      : format.kind === "hdf5"
+        ? await data_intake_parse_hdf5(upload)
+        : await data_intake_parse_rdata(upload);
+  return {...extracted, format: format.label};
+}
+
 data_intake_read_source = async (
   source,
   sample,
@@ -198,7 +479,7 @@ data_intake_read_source = async (
   erddapInput
 ) => {
   if (!source) {
-    return {rows: [], name: "No dataset selected", error: null};
+    return {rows: [], name: "No dataset selected", format: "None", warnings: [], error: null};
   }
 
   if (source === "sample") {
@@ -216,16 +497,25 @@ data_intake_read_source = async (
     return {
       rows: data_intake_parse_csv(text),
       name: path,
+      format: "CSV Text",
+      warnings: [],
       error: null
     };
   }
 
   if (source === "upload") {
     if (!upload) {
-      return {rows: [], name: "No CSV selected", error: "Choose a CSV file to continue."};
+      return {
+        rows: [],
+        name: "No dataset selected",
+        format: "None",
+        warnings: [],
+        error: "Choose a CSV, RData, HDF5, or NetCDF file to continue."
+      };
     }
+    const extracted = await data_intake_parse_upload(upload);
     return {
-      rows: data_intake_parse_csv(await upload.text()),
+      ...extracted,
       name: upload.name,
       error: null
     };
@@ -236,6 +526,8 @@ data_intake_read_source = async (
     return {
       rows: [],
       name: "No remote dataset selected",
+      format: "None",
+      warnings: [],
       error: "Enter a GliderDAC/ERDDAP dataset ID or CSV URL."
     };
   }
@@ -262,6 +554,8 @@ data_intake_read_source = async (
   return {
     rows: data_intake_parse_csv(await response.text()),
     name: url.toString(),
+    format: "CSV Text",
+    warnings: [],
     error: null
   };
 }
@@ -280,6 +574,8 @@ data_intake_loaded = {
     return {
       rows: [],
       name: "Unable to load dataset",
+      format: "Unknown",
+      warnings: [],
       error: error instanceof Error ? error.message : String(error)
     };
   }
@@ -325,12 +621,28 @@ data_intake_source_status = {
         <dt>Records</dt>
         <dd>${rowCount.toLocaleString()} rows loaded</dd>
       </div>
+      <div>
+        <dt>Format</dt>
+        <dd><span class="data-intake__format-badge">${data_intake_loaded.format}</span></dd>
+      </div>
+      <div>
+        <dt>Variables</dt>
+        <dd>${columnCount.toLocaleString()} columns extracted</dd>
+      </div>
     </dl>
     ${data_intake_loaded.error
       ? html`<div class="data-intake__status data-intake__status--error">
           ${data_intake_loaded.error}
         </div>`
       : html`<div class="data-intake__normalization">${normalizationMessage}</div>`}
+    ${data_intake_loaded.warnings.length > 0
+      ? html`<div class="data-intake__extraction-guidance" role="status">
+          <strong>Extraction guidance</strong>
+          <ul>${data_intake_loaded.warnings.map(
+            (warning) => html`<li>${warning}</li>`
+          )}</ul>
+        </div>`
+      : null}
     <div class="data-intake__columns">
       <strong>Detected columns</strong>
       <div class="data-intake__badge-list">
@@ -455,8 +767,11 @@ viewof data_intake_mapping = {
 
     const imported = data_intake_imported.mappings[standardField];
     const suggested = data_intake_definition_suggestions[standardField];
-    const inferred = (data_intake_aliases.get(standardField) || [])
-      .find((alias) => data_intake_columns.includes(alias));
+    const inferred = data_intake_columns.find((column) =>
+      (data_intake_aliases.get(standardField) || []).some(
+        (alias) => column === alias || column.endsWith(`_${alias}`)
+      )
+    );
     select.value = data_intake_columns.includes(imported)
       ? imported
       : data_intake_columns.includes(suggested)

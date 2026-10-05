@@ -16,7 +16,7 @@ class DataIntakePageTests(unittest.TestCase):
             "data/sample/custom_hackathon/glider_hackathon_data.csv",
             "data/sample/custom_hackathon/glider_hackathon_fieldDefinitions.csv",
             "Load Sample Dataset",
-            "Upload Custom CSV",
+            "Upload Custom Dataset",
             "GliderDAC / ERDDAP",
         ):
             self.assertIn(expected, self.page)
@@ -48,7 +48,7 @@ class DataIntakePageTests(unittest.TestCase):
     def test_source_cards_explain_each_option(self):
         for expected in (
             "Built-in example oceanographic glider datasets",
-            "Parse local oceanographic CSV files securely in your browser",
+            "Parse local oceanographic CSV, RData, HDF5, and NetCDF files",
             "Stream public dataset records directly from IOOS GliderDAC",
         ):
             self.assertIn(expected, self.page)
@@ -60,6 +60,47 @@ class DataIntakePageTests(unittest.TestCase):
             "Detected columns",
             "normalized to snake_case",
             "Proceed to Step 2",
+        ):
+            self.assertIn(expected, self.page)
+
+    def test_upload_accepts_and_dispatches_all_supported_formats(self):
+        for expected in (
+            ".csv,text/csv",
+            ".rdata,.rda",
+            ".h5,.hdf5,application/x-hdf",
+            ".nc,.netcdf,application/x-netcdf",
+            "data_intake_parse_csv",
+            "data_intake_parse_netcdf",
+            "data_intake_parse_hdf5",
+            "data_intake_parse_rdata",
+            "data_intake_parse_upload",
+            "await upload.arrayBuffer()",
+        ):
+            self.assertIn(expected, self.page)
+
+    def test_binary_parsers_flatten_and_normalize_detected_variables(self):
+        for expected in (
+            "data_intake_flatten_variables",
+            "data_intake_unique_headers(included.map",
+            "shape.length > 2",
+            "No tabular 1D or 2D variables could be extracted",
+            "dimensions do not align",
+            "reader.recordDimension.length",
+            'variable.type === "char"',
+            "column.endsWith(`_${alias}`)",
+        ):
+            self.assertIn(expected, self.page)
+
+    def test_dataset_status_shows_format_metadata_and_guidance(self):
+        for expected in (
+            "CSV Text",
+            "NetCDF (OG1.0)",
+            "HDF5 Container",
+            "RData Frame",
+            "columns extracted",
+            "data-intake__format-badge",
+            "Extraction guidance",
+            "data-intake__extraction-guidance",
         ):
             self.assertIn(expected, self.page)
 
@@ -117,6 +158,20 @@ class DataIntakePageTests(unittest.TestCase):
             "Clear & Reset Capabilities",
             "Field Mapping Warnings",
             "Strict Unlock Safeguards",
+        ):
+            self.assertIn(expected, instructions)
+
+    def test_copilot_instructions_include_multiformat_guidelines(self):
+        instructions = (
+            REPOSITORY_ROOT / ".github" / "copilot-instructions.md"
+        ).read_text(encoding="utf-8")
+        for expected in (
+            "Multi-Format Binary Data Intake Guidelines",
+            ".csv`, `.rdata`, `.rda`, `.h5`, `.hdf5`, `.nc`, and `.netcdf",
+            "Parse NetCDF",
+            "Parse HDF5",
+            "Parse RData",
+            "strict `snake_case`",
         ):
             self.assertIn(expected, instructions)
 

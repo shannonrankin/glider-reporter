@@ -97,6 +97,28 @@ $data-intake-border: #c7d3dd;
     padding: 0.2rem 0.55rem;
   }
 
+  .data-intake__format-badge {
+    background: #dceeff;
+    border: 1px solid $data-intake-blue;
+    border-radius: 999px;
+    color: #17324d;
+    display: inline-block;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+  }
+
+  .data-intake__extraction-guidance {
+    background: #fff8d9;
+    border-left: 0.3rem solid $data-intake-yellow;
+    border-radius: 0.35rem;
+    margin-block: 1rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .data-intake__extraction-guidance ul {
+    margin-bottom: 0;
+  }
+
   .data-intake__next-step {
     font-weight: 600;
     margin-bottom: 0;
