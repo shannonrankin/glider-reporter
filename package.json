@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "test": "node --test tests/data_intake_binary.test.mjs"
+  },
+  "devDependencies": {
+    "h5wasm": "^0.10.3",
+    "netcdfjs": "^4.0.0"
+  }
+}

@@ -5,6 +5,7 @@
 __pycache__/
 .quarto/
 _site/
+node_modules/
 
 /.quarto/
 **/*.quarto_ipynb
