@@ -91,6 +91,17 @@ class DataIntakePageTests(unittest.TestCase):
         ):
             self.assertIn(expected, self.page)
 
+    def test_recursive_flattening_uses_a_local_function_name(self):
+        self.assertIn(
+            "data_intake_flatten_values = function flattenValues(value)",
+            self.page,
+        )
+        self.assertIn("return value.flatMap(flattenValues);", self.page)
+        self.assertNotIn(
+            "value.flatMap((item) => data_intake_flatten_values(item))",
+            self.page,
+        )
+
     def test_dataset_status_shows_format_metadata_and_guidance(self):
         for expected in (
             "CSV Text",
