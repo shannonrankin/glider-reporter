@@ -44,6 +44,17 @@ function fixture(name) {
   };
 }
 
+function validate(rows, mapping) {
+  const code = page.split('data_intake_canonical_time = ')[1]?.split('\n```')[0];
+  assert.ok(code, 'The OG1.0 validation cell must be present');
+  const validation = `data_intake_canonical_time = ${code}`
+    .replace('data_intake_validation = {', 'return (() => {')
+    .replace(/\}\s*$/, '})()');
+  return new Function('data_intake_loaded', 'data_intake_mapping', validation)(
+    {rows}, mapping
+  );
+}
+
 test('recursive flattening preserves nested, scalar, and typed numeric values', () => {
   assert.deepEqual(flattenValues([1, [2, [3, 4]], 5]), [1, 2, 3, 4, 5]);
   assert.deepEqual(flattenValues(42), [42]);
@@ -115,6 +126,13 @@ test('the NetCDF fixture retains dimensions, converts char values, and aligns co
   assert.deepEqual(result.rows.map((row) => [row.time, row.latitude, row.longitude, row.depth, row.label]),
     [[0, 40, -70, 0, 'A'], [0, 40, -70, 5, 'A'], [0, 40, -70, 10, 'A'],
       [1, 41, -71, 0, 'B'], [1, 41, -71, 5, 'B'], [1, 41, -71, 10, 'B']]);
+  const validation = validate(result.rows, {
+    time: 'time', latitude: 'latitude', longitude: 'longitude', depth: 'depth'
+  });
+  assert.deepEqual(validation.missingRequired, []);
+  assert.deepEqual(validation.standardizedRows.map((row) => [row.latitude, row.longitude, row.depth]),
+    result.rows.map((row) => [row.latitude, row.longitude, row.depth]));
+  assert.deepEqual(validation.issues, ['6 row(s) contain blank or malformed timestamps.']);
 });
 
 test('existing CSV parsing and upload safety limit remain unchanged', async () => {
