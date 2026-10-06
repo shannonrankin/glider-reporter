@@ -192,10 +192,10 @@ data_intake_parse_csv = (text) => {
   });
 }
 
-data_intake_flatten_values = (value) => {
+data_intake_flatten_values = function flattenValues(value) {
   if (ArrayBuffer.isView(value)) return Array.from(value);
   if (!Array.isArray(value)) return [value];
-  return value.flatMap((item) => data_intake_flatten_values(item));
+  return value.flatMap(flattenValues);
 }
 
 data_intake_flatten_variables = (variables) => {
