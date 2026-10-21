@@ -1,16 +1,27 @@
 ---
-title: "Temperature & Salinity Depth Profile"
-output: html_document
+id: temp_salinity_profile
+name: Temperature & Salinity Depth Profile
+description: Plots vertical depth profiles of temperature and salinity across the glider mission.
+language: R
+execution_instructions: Requires R with readr, here, and ggplot2. Run from the repository root.
+required_fields:
+  - depth
+  - temperature
+  - salinity
+output_type: Figure/Plot
+translation_status: ready
+citation: OceanGliders Quality Control Manual v1.0
+issue_url: https://github.com/shannonrankin/glider-reporter/issues/2
 ---
 
-```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
+## Code
+
+```r
 profile_data <- readr::read_csv(
   here::here("data", "sample", "og10_standard", "glider_og10_data.csv"),
   show_col_types = FALSE
 )
-```
 
-```{r profile, echo=TRUE, message=FALSE, warning=FALSE}
 plot_data <- base::rbind(
   data.frame(
     depth = profile_data$depth,
@@ -43,11 +54,7 @@ profile_plot <- ggplot2::ggplot(
   ggplot2::theme_minimal()
 
 ggplot2::ggsave(
-  here::here(
-    "data",
-    "precomputed_outputs",
-    "temp_salinity_profile.png"
-  ),
+  here::here("data", "precomputed_outputs", "temp_salinity_profile.png"),
   plot = profile_plot,
   width = 8,
   height = 5,
@@ -56,4 +63,3 @@ ggplot2::ggsave(
 
 profile_plot
 ```
-

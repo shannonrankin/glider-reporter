@@ -4,6 +4,7 @@ execute:
   echo: false
 resources:
   - functions/registry.json
+  - functions/*.md
 ---
 
 ## Development context
@@ -40,7 +41,7 @@ references_bibliography = html`<ol class="references-bibliography">
   ${references_registry.map((entry) => html`<li id=${`reference-${entry.id}`}>
     <strong>${entry.citation || "Citation not provided."}</strong><br>
     Reporting function:
-    <a href=${entry.code_file}>${entry.name}</a>
+    <a href=${entry.function_file}>${entry.name}</a>
     (${entry.language}).
     <a href=${entry.issue_url}>GitHub Issue</a>
   </li>`)}

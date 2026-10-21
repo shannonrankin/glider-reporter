@@ -18,7 +18,9 @@ class FunctionExplorerPageTests(unittest.TestCase):
             "data/precomputed_outputs/",
             "entry.issue_url",
             "entry.citation",
-            "entry.code_file",
+            "entry.execution_instructions",
+            "entry.function_file",
+            "Download Function Source",
         ):
             self.assertIn(expected, self.page)
 

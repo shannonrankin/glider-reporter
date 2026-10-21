@@ -81,7 +81,7 @@ class WebsiteDocumentationTests(unittest.TestCase):
             'FileAttachment("functions/registry.json")',
             "entry.citation",
             "entry.name",
-            "entry.code_file",
+            "entry.function_file",
             "entry.issue_url",
             "## AI governance disclosure",
             "GitHub Copilot",
@@ -95,13 +95,22 @@ class WebsiteDocumentationTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
-        required_fields = {"id", "name", "language", "citation", "issue_url", "code_file"}
+        required_fields = {
+            "id",
+            "name",
+            "language",
+            "citation",
+            "issue_url",
+            "function_file",
+            "execution_instructions",
+        }
 
         self.assertGreater(len(registry), 0)
         for entry in registry:
             self.assertTrue(required_fields.issubset(entry))
             self.assertTrue(entry["citation"])
             self.assertTrue(entry["issue_url"])
+            self.assertTrue((REPOSITORY_ROOT / entry["function_file"]).is_file())
 
 
 if __name__ == "__main__":

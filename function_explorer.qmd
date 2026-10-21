@@ -10,6 +10,7 @@ format:
     toc: true
 resources:
   - data/precomputed_outputs/*
+  - functions/*.md
 ---
 
 <div class="function-explorer">
@@ -182,6 +183,13 @@ function_explorer_issue_link = (entry, className, text) => {
   return link;
 }
 
+function_explorer_function_link = (entry, className, text) => {
+  const link = function_explorer_element("a", className, text);
+  link.href = entry.function_file;
+  link.download = entry.function_file.split("/").pop();
+  return link;
+}
+
 function_explorer_tag = (text, modifier = "") => function_explorer_element(
   "span",
   `function-explorer__tag${modifier ? ` ${modifier}` : ""}`,
@@ -287,12 +295,11 @@ function_explorer_catalog = {
       "",
       "Operational requirements"
     );
-    const requirements = function_explorer_element("p", "");
-    requirements.append("Implementation: ", function_explorer_element(
-      "code",
+    const requirements = function_explorer_element(
+      "p",
       "",
-      entry.code_file
-    ));
+      entry.execution_instructions
+    );
 
     const fieldsHeading = function_explorer_element("h3", "", "Required input fields");
     const fieldList = function_explorer_element("ul", "function-explorer__field-list");
@@ -359,6 +366,11 @@ function_explorer_catalog = {
         entry,
         "function-explorer__issue-link",
         "View Build History on GitHub"
+      ),
+      function_explorer_function_link(
+        entry,
+        "function-explorer__issue-link",
+        "Download Function Source"
       ),
       footerCloseButton
     );
