@@ -56,6 +56,11 @@ body:
         - label: salinity
         - label: density
         - label: oxygen
+        - label: hybrid-millidecade
+        - label: sound pressure level
+        - label: sound detections
+        - label: instrument depth
+        - label: survey mode
 
   - type: dropdown
     id: output_type
