@@ -47,6 +47,32 @@ class FunctionRegistryTests(unittest.TestCase):
         self.assertGreater(width, 0)
         self.assertGreater(height, 0)
 
+    def test_imported_plot_functions_have_python_and_r_entries(self):
+        registry = json.loads(
+            (
+                REPOSITORY_ROOT / "functions" / "registry.json"
+            ).read_text(encoding="utf-8")
+        )
+        entries = {entry["id"]: entry for entry in registry}
+
+        for function_name in (
+            "setup_map_axes",
+            "plot_corr_matrix",
+            "plot_spectrum_lines",
+            "plot_box_by_group",
+        ):
+            for language, suffix in (("Python", "py"), ("R", "r")):
+                entry = entries[f"{function_name}_{suffix}"]
+                self.assertEqual(entry["language"], language)
+                self.assertEqual(
+                    entry["issue_url"],
+                    "https://github.com/shannonrankin/glider-reporter/issues/38",
+                )
+                self.assertIn(
+                    f"functions/{function_name}_{suffix}.md",
+                    entry["function_file"],
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

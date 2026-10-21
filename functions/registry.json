@@ -1,5 +1,133 @@
 [
   {
+    "id": "plot_box_by_group_py",
+    "name": "Grouped Sound Pressure Level Box Plot (Python)",
+    "description": "Draws colored sound-pressure-level box plots by group and marks energy-equivalent means.",
+    "language": "Python",
+    "execution_instructions": "Requires numpy and matplotlib. Pass a label-to-values mapping and a matching label-to-color mapping.",
+    "required_fields": [
+      "sound_pressure_level"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "Adapted from the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/plot_box_by_group_py.md"
+  },
+  {
+    "id": "plot_box_by_group_r",
+    "name": "Grouped Sound Pressure Level Box Plot (R)",
+    "description": "Draws sound-pressure-level box plots by group and marks energy-equivalent means.",
+    "language": "R",
+    "execution_instructions": "Requires dplyr and ggplot2. Pass a data frame with sound_pressure_level and a grouping column.",
+    "required_fields": [
+      "sound_pressure_level"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "R translation of the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/plot_box_by_group_r.md"
+  },
+  {
+    "id": "plot_corr_matrix_py",
+    "name": "Ocean Variable Correlation Matrix (Python)",
+    "description": "Draws an annotated Pearson correlation heatmap for selected oceanographic variables.",
+    "language": "Python",
+    "execution_instructions": "Requires pandas, seaborn, and matplotlib. Pass a pandas DataFrame, selected numeric column names, a title, and a matplotlib axis.",
+    "required_fields": [
+      "temperature",
+      "salinity",
+      "depth"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "Adapted from the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/plot_corr_matrix_py.md"
+  },
+  {
+    "id": "plot_corr_matrix_r",
+    "name": "Ocean Variable Correlation Matrix (R)",
+    "description": "Draws an annotated Pearson correlation heatmap for selected oceanographic variables.",
+    "language": "R",
+    "execution_instructions": "Requires ggplot2 and tidyr. Pass a data frame and selected numeric column names.",
+    "required_fields": [
+      "temperature",
+      "salinity",
+      "depth"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "R translation of the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/plot_corr_matrix_r.md"
+  },
+  {
+    "id": "plot_spectrum_lines_py",
+    "name": "Grouped Acoustic Spectrum (Python)",
+    "description": "Plots one sound-pressure-level spectrum per group against logarithmic frequency.",
+    "language": "Python",
+    "execution_instructions": "Requires matplotlib. Pass aligned frequency values in Hz, a label-to-SPL mapping, and a matching label-to-color mapping.",
+    "required_fields": [
+      "frequency",
+      "sound_pressure_level"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "Adapted from the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/plot_spectrum_lines_py.md"
+  },
+  {
+    "id": "plot_spectrum_lines_r",
+    "name": "Grouped Acoustic Spectrum (R)",
+    "description": "Plots one sound-pressure-level spectrum per group against logarithmic frequency.",
+    "language": "R",
+    "execution_instructions": "Requires ggplot2. Pass a data frame with frequency, sound_pressure_level, and grouping columns.",
+    "required_fields": [
+      "frequency",
+      "sound_pressure_level"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "R translation of the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/plot_spectrum_lines_r.md"
+  },
+  {
+    "id": "setup_map_axes_py",
+    "name": "Glider Track Map Axes (Python)",
+    "description": "Prepares a Cartopy map for plotting glider tracks with coastlines and labeled geographic gridlines.",
+    "language": "Python",
+    "execution_instructions": "Requires matplotlib and cartopy. Pass a Cartopy GeoAxes, a [west, east, south, north] extent, and plot longitude and latitude tracks on the returned axis.",
+    "required_fields": [
+      "latitude",
+      "longitude"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "Adapted from the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/setup_map_axes_py.md"
+  },
+  {
+    "id": "setup_map_axes_r",
+    "name": "Glider Track Map Axes (R)",
+    "description": "Creates a ggplot map backdrop with coastlines and geographic coordinates for plotting glider tracks.",
+    "language": "R",
+    "execution_instructions": "Requires ggplot2 and maps. Add ggplot2::geom_path() with longitude and latitude columns to the returned plot.",
+    "required_fields": [
+      "latitude",
+      "longitude"
+    ],
+    "output_type": "Figure/Plot",
+    "translation_status": "ready",
+    "citation": "R translation of the PAM-Glider Noise Profiler plotting utilities: https://github.com/jeengdahl97/noise-fx-calc/blob/c2334e4dfcb66604dfa958d8aee554752f8f1b4e/noise_utils.py",
+    "issue_url": "https://github.com/shannonrankin/glider-reporter/issues/38",
+    "function_file": "functions/setup_map_axes_r.md"
+  },
+  {
     "id": "temp_salinity_profile",
     "name": "Temperature & Salinity Depth Profile",
     "description": "Plots vertical depth profiles of temperature and salinity across the glider mission.",
