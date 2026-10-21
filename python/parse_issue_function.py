@@ -1,18 +1,22 @@
-"""Append a GitHub function-submission issue to the function registry."""
+"""Convert a GitHub function-submission issue into a Markdown function file."""
 
 import argparse
-import json
 import re
 from pathlib import Path
 
+import yaml
+
+from functions.build_registry import build_registry
+
 
 SUPPORTED_LANGUAGES = {"r", "python", "quarto"}
-CODE_FILE_SUFFIXES = {"r": ".Rmd", "python": ".py", "quarto": ".qmd"}
 REQUIRED_SECTIONS = (
     "Function Name",
     "Short Description",
     "Language",
+    "Execution Instructions",
     "Output Type",
+    "Code / Snippet / Description",
 )
 
 
@@ -51,8 +55,8 @@ def checked_fields(value):
     ]
 
 
-def registry_entry(issue_body, issue_url=""):
-    """Convert a function-submission issue body to registry metadata."""
+def function_metadata(issue_body, issue_url=""):
+    """Convert a function-submission issue body to frontmatter metadata."""
     sections = parse_sections(issue_body)
     missing = [
         heading
@@ -66,16 +70,12 @@ def registry_entry(issue_body, issue_url=""):
     language = sections["Language"]
     identifier = function_id(name)
     language_key = language.casefold()
-    suffix = CODE_FILE_SUFFIXES.get(language_key)
-    code_file = (
-        f"functions/{language_key}/{identifier}{suffix}" if suffix else ""
-    )
-
     return {
         "id": identifier,
         "name": name,
         "description": sections["Short Description"],
         "language": language,
+        "execution_instructions": sections["Execution Instructions"],
         "translation_status": (
             "ready" if language_key in SUPPORTED_LANGUAGES else "needs_translation"
         ),
@@ -83,7 +83,6 @@ def registry_entry(issue_body, issue_url=""):
             sections.get("Required Data Fields", "")
         ),
         "output_type": sections["Output Type"],
-        "code_file": code_file,
         "citation": sections.get("Citation / Reference", "").replace(
             "_No response_", ""
         ),
@@ -91,41 +90,47 @@ def registry_entry(issue_body, issue_url=""):
     }
 
 
-def append_to_registry(entry, registry_path):
-    """Append an entry to a JSON registry, rejecting duplicate identifiers."""
-    registry_path = Path(registry_path)
-    with registry_path.open(encoding="utf-8") as registry_file:
-        registry = json.load(registry_file)
+def write_function_file(metadata, code, functions_dir):
+    """Write one Markdown function file, rejecting duplicate identifiers."""
+    functions_dir = Path(functions_dir)
+    function_path = functions_dir / f"{metadata['id']}.md"
+    if function_path.exists():
+        raise ValueError(f"Function file already exists: {function_path}")
 
-    if not isinstance(registry, list):
-        raise ValueError("Registry must contain a JSON array")
-    if any(item.get("id") == entry["id"] for item in registry):
-        raise ValueError(f"Registry already contains id: {entry['id']}")
-
-    registry.append(entry)
-    with registry_path.open("w", encoding="utf-8") as registry_file:
-        json.dump(registry, registry_file, indent=2, ensure_ascii=False)
-        registry_file.write("\n")
+    functions_dir.mkdir(parents=True, exist_ok=True)
+    frontmatter = yaml.safe_dump(
+        metadata, allow_unicode=True, sort_keys=False
+    ).strip()
+    function_path.write_text(
+        f"---\n{frontmatter}\n---\n\n## Code\n\n{code.strip()}\n",
+        encoding="utf-8",
+    )
+    return function_path
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Append a function-submission issue body to registry.json."
+        description="Create a Markdown function file and rebuild registry.json."
     )
     parser.add_argument("issue_body", type=Path, help="Markdown issue body file")
     parser.add_argument(
-        "--registry",
+        "--functions-dir",
         type=Path,
-        default=Path("functions/registry.json"),
-        help="Registry JSON path (default: functions/registry.json)",
+        default=Path("functions"),
+        help="Directory for function Markdown files (default: functions)",
     )
     parser.add_argument("--issue-url", default="", help="Source GitHub issue URL")
     args = parser.parse_args()
 
     body = args.issue_body.read_text(encoding="utf-8")
-    append_to_registry(registry_entry(body, args.issue_url), args.registry)
+    metadata = function_metadata(body, args.issue_url)
+    write_function_file(
+        metadata,
+        parse_sections(body)["Code / Snippet / Description"],
+        args.functions_dir,
+    )
+    build_registry(args.functions_dir, args.functions_dir / "registry.json")
 
 
 if __name__ == "__main__":
     main()
-

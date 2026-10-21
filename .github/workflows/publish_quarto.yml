@@ -26,6 +26,11 @@ jobs:
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
+      - name: Build Function Registry
+        run: |
+          python -m pip install -r requirements.txt
+          python functions/build_registry.py
+
       - name: Render Quarto Site
         run: quarto render
 

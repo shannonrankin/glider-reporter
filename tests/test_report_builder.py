@@ -58,7 +58,7 @@ class ReportBuilderPageTests(unittest.TestCase):
             "custom_glider_report.Rmd",
             "custom_glider_report.py",
             'zip.folder("functions")',
-            "entry.code_file",
+            "entry.function_file",
             "report_builder_mapping_text",
         ):
             self.assertIn(expected, self.page)

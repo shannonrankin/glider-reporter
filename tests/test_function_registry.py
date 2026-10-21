@@ -1,21 +1,32 @@
 import json
 import struct
+import tempfile
 import unittest
 from pathlib import Path
 
+from functions.build_registry import build_registry, frontmatter
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 class FunctionRegistryTests(unittest.TestCase):
-    def test_sample_entry_assets_are_available(self):
+    def test_registry_is_compiled_from_function_frontmatter(self):
         registry_path = REPOSITORY_ROOT / "functions" / "registry.json"
         registry = json.loads(registry_path.read_text(encoding="utf-8"))
         entry = next(
             item for item in registry if item["id"] == "temp_salinity_profile"
         )
 
-        self.assertTrue((REPOSITORY_ROOT / entry["code_file"]).is_file())
+        function_path = REPOSITORY_ROOT / entry["function_file"]
+        self.assertTrue(function_path.is_file())
+        self.assertEqual(frontmatter(function_path)["name"], entry["name"])
+        self.assertIn("## Code", function_path.read_text(encoding="utf-8"))
+        self.assertIn("execution_instructions", entry)
+
+        with tempfile.TemporaryDirectory() as directory:
+            rebuilt_path = Path(directory, "registry.json")
+            rebuilt = build_registry(REPOSITORY_ROOT / "functions", rebuilt_path)
+            self.assertEqual(rebuilt, registry)
 
         preview_path = (
             REPOSITORY_ROOT

@@ -54,6 +54,8 @@ body:
         - label: depth
         - label: temperature
         - label: salinity
+        - label: density
+        - label: oxygen
 
   - type: dropdown
     id: output_type
