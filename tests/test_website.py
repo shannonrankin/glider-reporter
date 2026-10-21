@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 import unittest
 
+import yaml
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +32,10 @@ class WebsiteDocumentationTests(unittest.TestCase):
         self.assertIn(
             "https://github.com/shannonrankin/glider-reporter", self.project
         )
+
+    def test_project_renders_only_quarto_pages(self):
+        configuration = yaml.safe_load(self.project)
+        self.assertEqual(configuration["project"]["render"], ["*.qmd"])
 
     def test_all_site_pages_hide_code_chunks(self):
         for page_name in (
