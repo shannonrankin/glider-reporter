@@ -132,6 +132,17 @@ report_builder_available = report_builder_classified.filter((entry) => {
 report_builder_incompatible = report_builder_classified.filter(
   (entry) => entry.missing_fields.length > 0
 )
+
+report_builder_staged_selection = {
+  try {
+    const selectedIds = JSON.parse(
+      localStorage.getItem("glider_reporter_selected_functions") || "[]"
+    );
+    return Array.isArray(selectedIds) ? selectedIds : [];
+  } catch {
+    return [];
+  }
+}
 ```
 
 ## 2. Choose and order functions
@@ -143,7 +154,9 @@ viewof report_builder_selection = {
   const form = document.createElement("form");
   form.className = "report-builder__function-list";
   let orderedIds = report_builder_available.map((entry) => entry.id);
-  const selectedIds = new Set();
+  const selectedIds = new Set(
+    report_builder_staged_selection.filter((id) => orderedIds.includes(id))
+  );
 
   Object.defineProperty(form, "value", {
     get() {
