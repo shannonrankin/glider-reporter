@@ -53,16 +53,9 @@ function_explorer_registry = JSON.parse(
   await FileAttachment("functions/registry.json").text()
 )
 
-function_explorer_standard_fields = [
-  "latitude",
-  "longitude",
-  "time",
-  "depth",
-  "temperature",
-  "salinity",
-  "density",
-  "oxygen"
-]
+function_explorer_standard_fields = (
+  await FileAttachment("data/standard_fields.csv").csv()
+).map((entry) => entry.standard_field).filter(Boolean)
 
 function_explorer_chip_input = (
   options,
@@ -200,6 +193,114 @@ function_explorer_tag = (text, modifier = "") => function_explorer_element(
 ## Available functions
 
 ```{ojs}
+viewof function_explorer_active_id = {
+  const form = document.createElement("form");
+  form.className = "function-explorer__navigation";
+  const options = new Map(
+    function_explorer_matches.map((entry) => [entry.name, entry.id])
+  );
+  const select = Inputs.select(options, {label: "Function details"});
+  const controls = function_explorer_element(
+    "div",
+    "function-explorer__navigation-controls"
+  );
+  const previous = function_explorer_element(
+    "button",
+    "function-explorer__navigation-button",
+    "Previous (←)"
+  );
+  const next = function_explorer_element(
+    "button",
+    "function-explorer__navigation-button",
+    "Next (→)"
+  );
+
+  Object.defineProperty(form, "value", {
+    get() {
+      return select.value;
+    }
+  });
+
+  const move = (offset) => {
+    const index = function_explorer_matches.findIndex(
+      (entry) => entry.id === select.value
+    );
+    const nextIndex = (index + offset + function_explorer_matches.length)
+      % function_explorer_matches.length;
+    select.value = function_explorer_matches[nextIndex].id;
+    select.dispatchEvent(new Event("input", {bubbles: true}));
+  };
+
+  previous.type = "button";
+  previous.disabled = function_explorer_matches.length === 0;
+  previous.addEventListener("click", () => move(-1));
+  next.type = "button";
+  next.disabled = function_explorer_matches.length === 0;
+  next.addEventListener("click", () => move(1));
+  select.addEventListener(
+    "input",
+    () => form.dispatchEvent(new Event("input", {bubbles: true}))
+  );
+  controls.append(previous, next);
+  form.append(select, controls);
+  return form;
+}
+```
+
+```{ojs}
+function_explorer_saved_selection = {
+  try {
+    const selectedIds = JSON.parse(
+      localStorage.getItem("glider_reporter_selected_functions") || "[]"
+    );
+    return Array.isArray(selectedIds) ? selectedIds : [];
+  } catch {
+    return [];
+  }
+}
+
+viewof function_explorer_selection = {
+  const form = document.createElement("form");
+  form.className = "function-explorer__selection-list";
+  const selectedIds = new Set(function_explorer_saved_selection);
+
+  Object.defineProperty(form, "value", {
+    get() {
+      return [...selectedIds];
+    }
+  });
+
+  for (const entry of function_explorer_matches) {
+    const label = function_explorer_element(
+      "label",
+      "function-explorer__selection"
+    );
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = selectedIds.has(entry.id);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) selectedIds.add(entry.id);
+      else selectedIds.delete(entry.id);
+      localStorage.setItem("glider_reporter_selected_functions", JSON.stringify([...selectedIds]));
+      form.dispatchEvent(new Event("input", {bubbles: true}));
+    });
+    label.append(
+      checkbox,
+      function_explorer_element("span", "", `${entry.name} — Select for Report`)
+    );
+    form.append(label);
+  }
+  return form;
+}
+
+function_explorer_selected = function_explorer_selection
+
+function_explorer_selected_entry = function_explorer_matches.find(
+  (entry) => entry.id === function_explorer_active_id
+)
+```
+
+```{ojs}
 function_explorer_catalog = {
   const catalog = function_explorer_element("section", "function-explorer__catalog");
   const resultLabel = function_explorer_element(
@@ -210,7 +311,7 @@ function_explorer_catalog = {
   resultLabel.setAttribute("aria-live", "polite");
   catalog.append(resultLabel);
 
-  if (function_explorer_matches.length === 0) {
+  if (!function_explorer_selected_entry) {
     catalog.append(function_explorer_element(
       "p",
       "function-explorer__empty",
@@ -219,213 +320,129 @@ function_explorer_catalog = {
     return catalog;
   }
 
-  const grid = function_explorer_element("div", "function-explorer__grid");
-  const overlay = function_explorer_element("div", "function-explorer__overlay");
-  const drawer = function_explorer_element("aside", "function-explorer__drawer");
-  drawer.setAttribute("role", "dialog");
-  drawer.setAttribute("aria-modal", "true");
-  drawer.setAttribute("aria-hidden", "true");
-  drawer.setAttribute("aria-label", "Function details");
-  overlay.hidden = true;
-  drawer.hidden = true;
-
-  const closeDrawer = () => {
-    overlay.hidden = true;
-    drawer.hidden = true;
-    drawer.classList.remove("function-explorer__drawer--open");
-    drawer.classList.remove("function-explorer__drawer--full-screen");
-    drawer.setAttribute("aria-hidden", "true");
-  };
-
-  const openDrawer = (entry) => {
-    drawer.replaceChildren();
-
-    const header = function_explorer_element(
-      "header",
-      "function-explorer__drawer-header"
-    );
-    const closeButton = function_explorer_element(
-      "button",
-      "function-explorer__drawer-close",
-      "Close (✕)"
-    );
-    closeButton.type = "button";
-    closeButton.setAttribute("aria-label", "Close function details");
-    closeButton.addEventListener("click", closeDrawer);
-
-    const expandButton = function_explorer_element(
-      "button",
-      "function-explorer__drawer-expand",
-      "Expand Full Screen"
-    );
-    expandButton.type = "button";
-    expandButton.setAttribute("aria-pressed", "false");
-    expandButton.addEventListener("click", () => {
-      const expanded = drawer.classList.toggle(
-        "function-explorer__drawer--full-screen"
-      );
-      expandButton.textContent = expanded ? "Normal View" : "Expand Full Screen";
-      expandButton.setAttribute("aria-pressed", String(expanded));
-    });
-
-    const title = function_explorer_element("h2", "", entry.name);
-    const headerControls = function_explorer_element(
-      "div",
-      "function-explorer__drawer-controls"
-    );
-    headerControls.append(expandButton, closeButton);
-    header.append(title, headerControls);
-    const body = function_explorer_element("div", "function-explorer__drawer-body");
-    const tags = function_explorer_element("div", "function-explorer__tags");
-    tags.append(
-      function_explorer_tag(entry.language),
-      function_explorer_tag(
-        entry.translation_status === "ready" ? "Ready" : "Needs translation",
-        entry.translation_status === "ready"
-          ? "function-explorer__tag--ready"
-          : "function-explorer__tag--translation"
-      ),
-      function_explorer_tag(entry.output_type)
-    );
-
-    const descriptionHeading = function_explorer_element("h3", "", "Description");
-    const description = function_explorer_element("p", "", entry.description);
-    const requirementsHeading = function_explorer_element(
-      "h3",
-      "",
-      "Operational requirements"
-    );
-    const requirements = function_explorer_element(
-      "p",
-      "",
-      entry.execution_instructions
-    );
-
-    const fieldsHeading = function_explorer_element("h3", "", "Required input fields");
-    const fieldList = function_explorer_element("ul", "function-explorer__field-list");
-    for (const field of entry.required_fields || []) {
-      fieldList.append(function_explorer_element("li", "", field));
-    }
-
-    const previewHeading = function_explorer_element("h3", "", "Sample output");
-    const preview = document.createElement("img");
-    preview.className = "function-explorer__preview";
-    preview.src = `data/precomputed_outputs/${encodeURIComponent(entry.id)}.png`;
-    preview.alt = `Pre-computed sample output for ${entry.name}`;
-    preview.loading = "lazy";
-    const previewUnavailable = function_explorer_element(
-      "p",
-      "function-explorer__preview-unavailable",
-      "A pre-computed preview is not available for this function."
-    );
-    previewUnavailable.hidden = true;
-    preview.addEventListener("error", () => {
-      preview.hidden = true;
-      previewUnavailable.hidden = false;
-    });
-
-    const citationHeading = function_explorer_element(
-      "h3",
-      "",
-      "Citation & methodology"
-    );
-    const citation = function_explorer_element(
-      "p",
-      "function-explorer__citation",
-      entry.citation || "No citation supplied."
-    );
-
-    body.append(
-      tags,
-      descriptionHeading,
-      description,
-      requirementsHeading,
-      requirements,
-      fieldsHeading,
-      fieldList,
-      previewHeading,
-      preview,
-      previewUnavailable,
-      citationHeading,
-      citation
-    );
-
-    const footer = function_explorer_element(
-      "footer",
-      "function-explorer__drawer-footer"
-    );
-    const footerCloseButton = function_explorer_element(
-      "button",
-      "function-explorer__drawer-close",
-      "Close (✕)"
-    );
-    footerCloseButton.type = "button";
-    footerCloseButton.addEventListener("click", closeDrawer);
-    footer.append(
-      function_explorer_issue_link(
-        entry,
-        "function-explorer__issue-link",
-        "View Build History on GitHub"
-      ),
-      function_explorer_function_link(
-        entry,
-        "function-explorer__issue-link",
-        "Download Function Source"
-      ),
-      footerCloseButton
-    );
-    drawer.append(header, body, footer);
-    overlay.hidden = false;
-    drawer.hidden = false;
-    drawer.setAttribute("aria-hidden", "false");
-    requestAnimationFrame(() => {
-      drawer.classList.add("function-explorer__drawer--open");
-      closeButton.focus();
-    });
-  };
-
-  overlay.addEventListener("click", closeDrawer);
-  drawer.addEventListener("click", (event) => event.stopPropagation());
-  const closeOnEscape = (event) => {
-    if (event.key === "Escape" && !drawer.hidden) closeDrawer();
-  };
-  document.addEventListener("keydown", closeOnEscape);
-  invalidation.then(() => document.removeEventListener("keydown", closeOnEscape));
-
-  for (const entry of function_explorer_matches) {
-    const card = function_explorer_element("article", "function-explorer__card");
-    const title = function_explorer_element("h3", "", entry.name);
-    const description = function_explorer_element("p", "", entry.description);
-    const tags = function_explorer_element("div", "function-explorer__tags");
-    tags.append(
-      function_explorer_tag(entry.language),
-      function_explorer_tag(
-        entry.translation_status === "ready" ? "Ready" : "Needs translation",
-        entry.translation_status === "ready"
-          ? "function-explorer__tag--ready"
-          : "function-explorer__tag--translation"
-      )
-    );
-
-    const detailsButton = function_explorer_element(
-      "button",
-      "function-explorer__details-button",
-      "View details"
-    );
-    detailsButton.type = "button";
-    detailsButton.addEventListener("click", () => openDrawer(entry));
-
-    card.append(
-      title,
-      description,
-      tags,
-      detailsButton
-    );
-    grid.append(card);
+  const entry = function_explorer_selected_entry;
+  const card = function_explorer_element(
+    "article",
+    "function-explorer__detail-card"
+  );
+  const title = function_explorer_element("h3", "", entry.name);
+  const tags = function_explorer_element("div", "function-explorer__tags");
+  tags.append(
+    function_explorer_tag(entry.language),
+    function_explorer_tag(entry.output_type),
+    function_explorer_tag(
+      entry.translation_status === "ready" ? "Ready" : "Needs translation",
+      entry.translation_status === "ready"
+        ? "function-explorer__tag--ready"
+        : "function-explorer__tag--translation"
+    )
+  );
+  const description = function_explorer_element("p", "", entry.description);
+  const requirementsHeading = function_explorer_element(
+    "h4",
+    "",
+    "Operational requirements"
+  );
+  const requirements = function_explorer_element(
+    "p",
+    "",
+    entry.execution_instructions
+  );
+  const fieldsHeading = function_explorer_element("h4", "", "Required input fields");
+  const fieldList = function_explorer_element("ul", "function-explorer__field-list");
+  for (const field of entry.required_fields || []) {
+    fieldList.append(function_explorer_element("li", "", field));
   }
-
-  catalog.append(grid, overlay, drawer);
+  const codeHeading = function_explorer_element("h4", "", "Function code");
+  const code = document.createElement("code");
+  code.className = `language-${entry.language.toLowerCase()}`;
+  const codeBlock = document.createElement("pre");
+  codeBlock.className = "function-explorer__code";
+  code.textContent = "Loading function code…";
+  codeBlock.append(code);
+  fetch(new URL(entry.function_file, document.baseURI))
+    .then((response) => {
+      if (!response.ok) throw new Error(`Unable to load ${entry.function_file}.`);
+      return response.text();
+    })
+    .then((source) => {
+      const match = source.match(/## Code\s*\n+```\w*\n([\s\S]*?)```/);
+      code.textContent = match ? match[1].trim() : "No code block is available.";
+    })
+    .catch(() => {
+      code.textContent = "Function code could not be loaded.";
+    });
+  const previewHeading = function_explorer_element("h4", "", "Sample output");
+  const preview = document.createElement("img");
+  preview.className = "function-explorer__preview";
+  preview.src = `data/precomputed_outputs/${encodeURIComponent(entry.id)}.png`;
+  preview.alt = `Pre-computed sample output for ${entry.name}`;
+  preview.loading = "lazy";
+  const previewUnavailable = function_explorer_element(
+    "p",
+    "function-explorer__preview-unavailable",
+    "A pre-computed preview is not available for this function."
+  );
+  previewUnavailable.hidden = true;
+  preview.addEventListener("error", () => {
+    preview.hidden = true;
+    previewUnavailable.hidden = false;
+  });
+  const citationHeading = function_explorer_element(
+    "h4",
+    "",
+    "Citation & methodology"
+  );
+  const citation = function_explorer_element(
+    "p",
+    "function-explorer__citation",
+    entry.citation || "No citation supplied."
+  );
+  card.append(
+    title, tags, description, requirementsHeading, requirements, fieldsHeading,
+    fieldList, codeHeading, codeBlock, previewHeading, preview, previewUnavailable,
+    citationHeading, citation,
+    function_explorer_issue_link(
+      entry,
+      "function-explorer__issue-link",
+      "View Build History on GitHub"
+    ),
+    function_explorer_function_link(
+      entry,
+      "function-explorer__issue-link",
+      "Download Function Source"
+    )
+  );
+  catalog.append(card);
   return catalog;
+}
+```
+
+```{ojs}
+function_explorer_report_action = {
+  const container = function_explorer_element(
+    "div",
+    "function-explorer__report-action"
+  );
+  const status = function_explorer_element(
+    "p",
+    "function-explorer__selection-status",
+    `${function_explorer_selected.length} function${function_explorer_selected.length === 1 ? "" : "s"} selected and staged for report generation.`
+  );
+  status.setAttribute("aria-live", "polite");
+  const button = function_explorer_element(
+    "button",
+    "function-explorer__report-button",
+    "Move Selected Functions to Report Builder (→)"
+  );
+  button.type = "button";
+  button.disabled = function_explorer_selected.length === 0;
+  button.addEventListener("click", () => {
+    localStorage.setItem("glider_reporter_selected_functions", JSON.stringify(function_explorer_selected));
+    window.location.assign("report_builder.qmd");
+  });
+  container.append(status, button);
+  return container;
 }
 ```
 

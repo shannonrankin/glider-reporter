@@ -48,6 +48,8 @@ class ReportBuilderPageTests(unittest.TestCase):
             "Python (.py)",
             "report_builder_document",
             "report_builder_preview",
+            "report_builder_staged_selection",
+            'localStorage.getItem("glider_reporter_selected_functions")',
         ):
             self.assertIn(expected, self.page)
 

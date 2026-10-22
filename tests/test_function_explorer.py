@@ -30,6 +30,8 @@ class FunctionExplorerPageTests(unittest.TestCase):
             "viewof function_explorer_required_fields",
             "viewof function_explorer_language",
             "viewof function_explorer_output_type",
+            'FileAttachment("data/standard_fields.csv").csv()',
+            "entry.standard_field",
             "function_explorer_chip_input",
             "function-explorer__filter-card",
             '"aria-pressed"',
@@ -38,29 +40,28 @@ class FunctionExplorerPageTests(unittest.TestCase):
         ):
             self.assertIn(expected, self.page)
 
-        self.assertNotIn("Inputs.select(", self.page)
+        self.assertNotIn("function_explorer_standard_fields = [", self.page)
 
-    def test_page_has_cards_and_accessible_detail_drawer(self):
+    def test_page_has_inline_detail_navigation_and_selection_handoff(self):
         for expected in (
-            "function-explorer__card",
-            "function-explorer__drawer",
-            "function-explorer__drawer-header",
-            "function-explorer__drawer-body",
-            "function-explorer__drawer-footer",
-            "function-explorer__drawer-expand",
-            "function-explorer__drawer--full-screen",
-            '"role", "dialog"',
-            '"aria-modal", "true"',
-            "View details",
-            "Close (✕)",
-            "Expand Full Screen",
-            "Normal View",
+            "Inputs.select(options",
+            "viewof function_explorer_active_id",
+            "Previous (←)",
+            "Next (→)",
+            "% function_explorer_matches.length",
+            "function-explorer__detail-card",
+            "function-explorer__code",
             "Needs translation",
             "View Build History on GitHub",
+            "Select for Report",
+            "function_explorer_selected",
+            'localStorage.setItem("glider_reporter_selected_functions"',
+            'window.location.assign("report_builder.qmd")',
         ):
             self.assertIn(expected, self.page)
 
-        self.assertNotIn("function-explorer__card-link", self.page)
+        self.assertNotIn("function-explorer__drawer", self.page)
+        self.assertNotIn("function-explorer__overlay", self.page)
 
     def test_page_uses_isolated_module_styles(self):
         self.assertIn("styles/function_explorer.scss", self.page)
@@ -72,13 +73,10 @@ class FunctionExplorerPageTests(unittest.TestCase):
         self.assertIn(".function-explorer__chip--active", stylesheet)
         self.assertIn(".function-explorer__filter-card", stylesheet)
         self.assertIn(".function-explorer__search form > label", stylesheet)
-        self.assertIn(".function-explorer__drawer-body", stylesheet)
-        self.assertIn("overflow-y: auto", stylesheet)
-        self.assertIn("width: 500px", stylesheet)
-        self.assertIn("width: 100vw", stylesheet)
-        self.assertIn("background: rgba(0, 0, 0, 0.45)", stylesheet)
-        self.assertIn("z-index: 1000", stylesheet)
-        self.assertIn("z-index: 1001", stylesheet)
+        self.assertIn(".function-explorer__navigation", stylesheet)
+        self.assertIn(".function-explorer__detail-card", stylesheet)
+        self.assertIn(".function-explorer__report-action", stylesheet)
+        self.assertIn(".function-explorer__code", stylesheet)
         self.assertNotIn(":root", stylesheet)
 
     def test_site_navigation_links_to_explorer(self):
