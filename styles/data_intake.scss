@@ -60,6 +60,42 @@ $data-intake-border: #c7d3dd;
     margin-top: 0;
   }
 
+  .data-intake__dataset-tabset {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .data-intake__dataset-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .data-intake__dataset-tab {
+    background: white;
+    border: 1px solid $data-intake-blue;
+    border-radius: 999px;
+    color: #17324d;
+    cursor: pointer;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .data-intake__dataset-tab[aria-selected="true"] {
+    background: $data-intake-blue;
+    color: white;
+  }
+
+  .data-intake__dataset-panel {
+    background: white;
+    border: 1px solid $data-intake-border;
+    border-radius: 0.35rem;
+    padding: 0.85rem;
+  }
+
+  .data-intake__dataset-panel h4 {
+    margin-top: 0;
+  }
+
   .data-intake__dataset-status dl {
     display: grid;
     gap: 0.6rem 1.5rem;
@@ -215,5 +251,13 @@ $data-intake-border: #c7d3dd;
   .data-intake__status--locked {
     background: #f1f3f5;
     border-left: 0.3rem solid #5c6770;
+  }
+
+  .data-intake__script {
+    background: #17324d;
+    border-radius: 0.35rem;
+    color: white;
+    overflow-x: auto;
+    padding: 1rem;
   }
 }

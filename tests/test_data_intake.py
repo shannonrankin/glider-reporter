@@ -16,8 +16,10 @@ class DataIntakePageTests(unittest.TestCase):
             "data/sample/custom_hackathon/glider_hackathon_data.csv",
             "data/sample/custom_hackathon/glider_hackathon_fieldDefinitions.csv",
             "Load Sample Dataset",
-            "Upload Custom Dataset",
+            "Custom File Uploads",
             "GliderDAC / ERDDAP",
+            "Load ERDDAP Dataset",
+            "::: {.panel-tabset}",
         ):
             self.assertIn(expected, self.page)
 
@@ -59,7 +61,7 @@ class DataIntakePageTests(unittest.TestCase):
             "rows loaded",
             "Detected columns",
             "normalized to snake_case",
-            "Proceed to Step 2",
+            "proceed to Step 2",
         ):
             self.assertIn(expected, self.page)
 
@@ -126,7 +128,6 @@ class DataIntakePageTests(unittest.TestCase):
     def test_page_has_empty_initial_state_and_reset_control(self):
         for expected in (
             'name: "No dataset selected"',
-            "data_intake_source_control.value = null",
             "data_intake_upload_control",
             "data_intake_erddap_control.value =",
             "data_intake_mapping_file_control",
@@ -134,6 +135,27 @@ class DataIntakePageTests(unittest.TestCase):
         ):
             self.assertIn(expected, self.page)
         self.assertNotIn('{label: "Data source", value: "sample"}', self.page)
+
+    def test_page_loads_standard_fields_and_supports_multidataset_filters(self):
+        standard_fields = (
+            REPOSITORY_ROOT / "data" / "standard_fields.csv"
+        ).read_text(encoding="utf-8")
+        self.assertIn("standard_field,description,units,aliases", standard_fields)
+        self.assertIn("latitude,Geographic latitude", standard_fields)
+        for expected in (
+            'FileAttachment(\n  "data/standard_fields.csv"\n).csv()',
+            "data_intake_loaded_datasets",
+            "data_intake_active_dataset_key",
+            "data_intake_filtered_rows",
+            "Inputs.date",
+            "Inputs.range",
+            "Inputs.checkbox",
+            "Download Filter Script (.md)",
+            "glider_filter_script.md",
+            "dplyr::filter",
+            "pd.to_datetime",
+        ):
+            self.assertIn(expected, self.page)
 
     def test_page_warns_for_unmapped_optional_fields(self):
         for expected in (
@@ -147,7 +169,7 @@ class DataIntakePageTests(unittest.TestCase):
     def test_dashboard_unlock_has_strict_guardrails(self):
         for expected in (
             "data_intake_loaded.error === null",
-            "data_intake_loaded.rows.length > 0",
+            "data_intake_filtered_rows.length > 0",
             "data_intake_validation.missingRequired.length === 0",
             "const validationAccepted = data_intake_validation.issues.length === 0",
             "Dashboard Generation Unlocked",
