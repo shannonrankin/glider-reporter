@@ -17,8 +17,9 @@ format:
 
 1. Choose a built-in dataset, upload a CSV, RData, HDF5, or NetCDF file, or enter a GliderDAC/ERDDAP dataset ID or CSV URL.
 2. Match each OG1.0 field to a normalized field in your dataset.
-3. Review any red flags. If any appear, acknowledge them before proceeding.
-4. Download reusable mappings to `output/`, or import a previously saved `glider_field_mapping.json`.
+3. Filter the mapped dataset, retain the desired columns, and optionally export an R or Python filter script.
+4. Review any red flags in the filtered data. If any appear, acknowledge them before proceeding.
+5. Download reusable mappings and filter scripts to `output/`, or import a previously saved `glider_field_mapping.json`.
 :::
 
 <details class="data-intake__code-drawer">
@@ -33,22 +34,12 @@ for inspection or copying.
 ## 1. Choose a data source
 
 Behind the scenes, the selected source is loaded entirely in your browser and
-its headers are normalized to `snake_case`. **Next:** choose one source below
-and select, upload, or identify a dataset.
+its headers are normalized to `snake_case`. Load one or more sources below;
+then choose the mapped dataset for filtering and report generation.
 
-```{ojs}
-data_intake_source_control = Inputs.radio(
-  new Map([
-    ["Sample Dataset", "sample"],
-    ["Upload Custom Dataset", "upload"],
-    ["GliderDAC / ERDDAP", "erddap"]
-  ]),
-  {label: "Data source"}
-)
-viewof data_intake_source = data_intake_source_control
-```
+::: {.panel-tabset}
+## Sample Datasets
 
-<div class="data-intake__source-grid">
 <div class="data-intake__card">
 
 ### Sample dataset
@@ -73,14 +64,16 @@ data_intake_load_sample = {
   button.className = "data-intake__button";
   button.textContent = "Load Sample Dataset";
   button.addEventListener("click", () => {
-    data_intake_source_control.value = "sample";
-    data_intake_source_control.dispatchEvent(new Event("input", {bubbles: true}));
+    mutable data_intake_sample_load_request.value += 1;
   });
   return button;
 }
 ```
 
 </div>
+
+## Custom File Uploads
+
 <div class="data-intake__card">
 
 ### Upload custom dataset
@@ -93,12 +86,6 @@ data_intake_upload_control = Inputs.file({
   label: "Dataset file",
   accept: ".csv,text/csv,.rdata,.rda,.h5,.hdf5,application/x-hdf,.nc,.netcdf,application/x-netcdf"
 })
-data_intake_upload_control.addEventListener("input", () => {
-  if (data_intake_upload_control.value) {
-    data_intake_source_control.value = "upload";
-    data_intake_source_control.dispatchEvent(new Event("input", {bubbles: true}));
-  }
-})
 viewof data_intake_upload = data_intake_upload_control
 ```
 
@@ -106,6 +93,9 @@ Files stay in your browser. Variables are flattened into rows when possible,
 and their names are normalized to strict `snake_case`.
 
 </div>
+
+## GliderDAC / ERDDAP Stream
+
 <div class="data-intake__card">
 
 ### GliderDAC / ERDDAP
@@ -121,6 +111,19 @@ data_intake_erddap_control = Inputs.text({
 viewof data_intake_erddap_input = data_intake_erddap_control
 ```
 
+```{ojs}
+data_intake_load_erddap = {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "data-intake__button";
+  button.textContent = "Load ERDDAP Dataset";
+  button.addEventListener("click", () => {
+    mutable data_intake_erddap_load_request.value += 1;
+  });
+  return button;
+}
+```
+
 <details class="data-intake__guidance">
 <summary>GliderDAC / ERDDAP guidance</summary>
 
@@ -130,7 +133,12 @@ A bare dataset ID uses the IOOS GliderDAC ERDDAP tabledap endpoint.
 
 </details>
 </div>
-</div>
+:::
+
+```{ojs}
+mutable data_intake_sample_load_request = 0
+mutable data_intake_erddap_load_request = 0
+```
 
 ```{ojs}
 data_intake_snake_case = (name) => {
@@ -472,16 +480,7 @@ data_intake_parse_upload = async (upload) => {
   return {...extracted, format: format.label};
 }
 
-data_intake_read_source = async (
-  source,
-  sample,
-  upload,
-  erddapInput
-) => {
-  if (!source) {
-    return {rows: [], name: "No dataset selected", format: "None", warnings: [], error: null};
-  }
-
+data_intake_read_source = async (source, sample, upload, erddapInput) => {
   if (source === "sample") {
     const isHackathon = sample === "hackathon";
     const path = isHackathon
@@ -562,23 +561,57 @@ data_intake_read_source = async (
 ```
 
 ```{ojs}
-data_intake_loaded = {
-  try {
-    return await data_intake_read_source(
-      data_intake_source,
-      data_intake_sample,
-      data_intake_upload,
-      data_intake_erddap_input
-    );
-  } catch (error) {
-    return {
-      rows: [],
-      name: "Unable to load dataset",
-      format: "Unknown",
-      warnings: [],
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
+data_intake_loaded_datasets = {
+  const requests = [
+    ...(data_intake_sample_load_request > 0
+      ? [{source: "sample", key: "sample"}]
+      : []),
+    ...(data_intake_upload
+      ? [{source: "upload", key: `upload:${data_intake_upload.name}`}]
+      : []),
+    ...(data_intake_erddap_load_request > 0
+      ? [{source: "erddap", key: `erddap:${data_intake_erddap_input}`}]
+      : [])
+  ];
+  return await Promise.all(requests.map(async ({source, key}) => {
+    try {
+      return {
+        key,
+        source,
+        ...await data_intake_read_source(
+          source,
+          data_intake_sample,
+          data_intake_upload,
+          data_intake_erddap_input
+        )
+      };
+    } catch (error) {
+      return {
+        key,
+        source,
+        rows: [],
+        name: "Unable to load dataset",
+        format: "Unknown",
+        warnings: [],
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }));
+}
+
+viewof data_intake_active_dataset_key = Inputs.select(
+  new Map(data_intake_loaded_datasets.map((dataset) => [dataset.name, dataset.key])),
+  {label: "Mapped dataset"}
+)
+
+data_intake_loaded = data_intake_loaded_datasets.find(
+  (dataset) => dataset.key === data_intake_active_dataset_key
+) || {
+  rows: [],
+  name: "No dataset selected",
+  format: "None",
+  warnings: [],
+  error: null
 }
 
 data_intake_columns = data_intake_loaded.rows.length > 0
@@ -588,11 +621,6 @@ data_intake_columns = data_intake_loaded.rows.length > 0
 
 ```{ojs}
 data_intake_source_status = {
-  const rowCount = data_intake_loaded.rows.length;
-  const columnCount = data_intake_columns.length;
-  const normalizationMessage = columnCount === 0
-    ? "No column headers detected"
-    : `✓ All ${columnCount} column header${columnCount === 1 ? "" : "s"} normalized to snake_case`;
   const clearButton = document.createElement("button");
   clearButton.type = "button";
   clearButton.className = "data-intake__button data-intake__button--clear";
@@ -603,62 +631,72 @@ data_intake_source_status = {
     if (uploadInput) uploadInput.value = "";
     if (mappingInput) mappingInput.value = "";
     data_intake_erddap_control.value = "";
-    data_intake_source_control.value = null;
+    mutable data_intake_sample_load_request.value = 0;
+    mutable data_intake_erddap_load_request.value = 0;
     data_intake_upload_control.dispatchEvent(new Event("input", {bubbles: true}));
     data_intake_mapping_file_control.dispatchEvent(new Event("input", {bubbles: true}));
     data_intake_erddap_control.dispatchEvent(new Event("input", {bubbles: true}));
-    data_intake_source_control.dispatchEvent(new Event("input", {bubbles: true}));
+  });
+  const datasetTabset = document.createElement("div");
+  datasetTabset.className = "data-intake__dataset-tabset";
+  const tabs = document.createElement("div");
+  tabs.className = "data-intake__dataset-tabs";
+  tabs.setAttribute("role", "tablist");
+  datasetTabset.append(tabs);
+  const panels = data_intake_loaded_datasets.map((dataset, index) => {
+    const columns = dataset.rows.length > 0 ? Object.keys(dataset.rows[0]) : [];
+    const normalizationMessage = columns.length === 0
+      ? "No column headers detected"
+      : `✓ All ${columns.length} column header${columns.length === 1 ? "" : "s"} normalized to snake_case`;
+    const panel = html`<section class="data-intake__dataset-panel" role="tabpanel">
+      <h4>${dataset.name}</h4>
+      <dl>
+        <div><dt>Records</dt><dd>${dataset.rows.length.toLocaleString()} rows loaded</dd></div>
+        <div><dt>Format</dt><dd><span class="data-intake__format-badge">${dataset.format}</span></dd></div>
+        <div><dt>Variables</dt><dd>${columns.length.toLocaleString()} columns extracted</dd></div>
+      </dl>
+      ${dataset.error
+        ? html`<div class="data-intake__status data-intake__status--error">${dataset.error}</div>`
+        : html`<div class="data-intake__normalization">${normalizationMessage}</div>`}
+      ${dataset.warnings.length > 0
+        ? html`<div class="data-intake__extraction-guidance"><strong>Extraction guidance</strong>
+            <ul>${dataset.warnings.map((warning) => html`<li>${warning}</li>`)}</ul></div>`
+        : null}
+      <div class="data-intake__columns"><strong>Detected columns</strong>
+        <div class="data-intake__badge-list">${columns.length > 0
+          ? columns.map((column) => html`<code class="data-intake__badge">${column}</code>`)
+          : html`<span>None</span>`}</div>
+      </div>
+    </section>`;
+    panel.hidden = index !== 0;
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "data-intake__dataset-tab";
+    tab.textContent = dataset.name;
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", String(index === 0));
+    tab.addEventListener("click", () => {
+      panels.forEach((candidate, candidateIndex) => {
+        candidate.hidden = candidateIndex !== index;
+        tabs.children[candidateIndex].setAttribute(
+          "aria-selected", String(candidateIndex === index)
+        );
+      });
+    });
+    tabs.append(tab);
+    datasetTabset.append(panel);
+    return panel;
   });
   return html`<section class="data-intake__dataset-status" aria-live="polite">
     <h3>Loaded Datasets & Status</h3>
     ${clearButton}
-    <dl>
-      <div>
-        <dt>Active dataset</dt>
-        <dd>${data_intake_loaded.name}</dd>
-      </div>
-      <div>
-        <dt>Records</dt>
-        <dd>${rowCount.toLocaleString()} rows loaded</dd>
-      </div>
-      <div>
-        <dt>Format</dt>
-        <dd><span class="data-intake__format-badge">${data_intake_loaded.format}</span></dd>
-      </div>
-      <div>
-        <dt>Variables</dt>
-        <dd>${columnCount.toLocaleString()} columns extracted</dd>
-      </div>
-    </dl>
-    ${data_intake_loaded.error
-      ? html`<div class="data-intake__status data-intake__status--error">
-          ${data_intake_loaded.error}
-        </div>`
-      : html`<div class="data-intake__normalization">${normalizationMessage}</div>`}
-    ${data_intake_loaded.warnings.length > 0
-      ? html`<div class="data-intake__extraction-guidance" role="status">
-          <strong>Extraction guidance</strong>
-          <ul>${data_intake_loaded.warnings.map(
-            (warning) => html`<li>${warning}</li>`
-          )}</ul>
-        </div>`
-      : null}
-    <div class="data-intake__columns">
-      <strong>Detected columns</strong>
-      <div class="data-intake__badge-list">
-        ${columnCount > 0
-          ? data_intake_columns.map(
-              (column) => html`<code class="data-intake__badge">${column}</code>`
-            )
-          : html`<span>None</span>`}
-      </div>
-    </div>
+    ${panels.length > 0
+      ? datasetTabset
+      : html`<p>No datasets loaded. Choose a source above to begin.</p>`}
     <p class="data-intake__next-step">
-      ${data_intake_loaded.error
-        ? "→ Resolve the data source message above before continuing."
-        : rowCount === 0
-          ? "→ Select or load a dataset to begin."
-          : "→ Proceed to Step 2 to map required latitude, longitude, and time fields."}
+      ${data_intake_loaded_datasets.length === 0
+        ? "→ Select or load a dataset to begin."
+        : "→ Choose a mapped dataset, then proceed to Step 2 to map required latitude, longitude, and time fields."}
     </p>
   </section>`;
 }
@@ -671,27 +709,20 @@ file. **Next:** review every suggestion, map at least `latitude`, `longitude`,
 and `time`, then optionally download the mapping for reuse.
 
 ```{ojs}
-data_intake_standard_fields = [
-  "latitude",
-  "longitude",
-  "time",
-  "depth",
-  "temperature",
-  "salinity",
-  "density",
-  "oxygen"
-]
+data_intake_standard_field_metadata = await FileAttachment(
+  "data/standard_fields.csv"
+).csv()
 
-data_intake_aliases = new Map([
-  ["latitude", ["latitude", "lat", "lat_deg", "latitude_deg"]],
-  ["longitude", ["longitude", "lon", "lon_deg", "longitude_deg"]],
-  ["time", ["time", "iso_time", "timestamp", "datetime"]],
-  ["depth", ["depth", "depth_m", "pressure"]],
-  ["temperature", ["temperature", "temp", "temp_c", "water_temperature"]],
-  ["salinity", ["salinity", "salinity_ppt", "practical_salinity"]],
-  ["density", ["density", "sea_water_density"]],
-  ["oxygen", ["oxygen", "dissolved_oxygen", "oxygen_concentration"]]
-])
+data_intake_standard_fields = data_intake_standard_field_metadata.map(
+  ({standard_field}) => standard_field
+)
+
+data_intake_aliases = new Map(data_intake_standard_field_metadata.map(
+  ({standard_field, aliases}) => [
+    standard_field,
+    [standard_field, ...aliases.split(";").map(data_intake_snake_case)]
+  ]
+))
 
 data_intake_field_definitions = data_intake_parse_csv(
   await FileAttachment(
@@ -699,7 +730,7 @@ data_intake_field_definitions = data_intake_parse_csv(
   ).text()
 )
 
-data_intake_definition_suggestions = data_intake_source === "sample"
+data_intake_definition_suggestions = data_intake_loaded.source === "sample"
   && data_intake_sample === "hackathon"
   ? Object.fromEntries(
       data_intake_field_definitions.flatMap((definition) => {
@@ -859,11 +890,205 @@ data_intake_download_mapping = {
 Place the downloaded `glider_field_mapping.json` file in `output/` with your
 other report exports.
 
-## 3. Validate required fields
+## 3. Interactive data filtering & script generation
+
+Filter the mapped dataset before validating it or generating a report. These
+controls only change the browser preview; download the matching script to
+`output/` to reproduce the filters in R or Python.
+
+```{ojs}
+data_intake_filterable_columns = data_intake_columns.filter(
+  (column) => !Object.values(data_intake_mapping).includes(column)
+)
+
+viewof data_intake_filter_start_date = Inputs.date({
+  label: "Start date (inclusive)"
+})
+
+viewof data_intake_filter_end_date = Inputs.date({
+  label: "End date (inclusive)"
+})
+
+data_intake_latitude_bounds = data_intake_mapping.latitude
+  ? data_intake_loaded.rows
+      .map((row) => Number(row[data_intake_mapping.latitude]))
+      .filter(Number.isFinite)
+  : []
+
+data_intake_longitude_bounds = data_intake_mapping.longitude
+  ? data_intake_loaded.rows
+      .map((row) => Number(row[data_intake_mapping.longitude]))
+      .filter(Number.isFinite)
+  : []
+
+viewof data_intake_filter_latitude_minimum = Inputs.range(
+  data_intake_latitude_bounds.length > 0
+    ? [Math.min(...data_intake_latitude_bounds), Math.max(...data_intake_latitude_bounds)]
+    : [-90, 90],
+  {label: "Minimum latitude", step: 0.01, value: Math.min(...(data_intake_latitude_bounds.length > 0 ? data_intake_latitude_bounds : [-90, 90]))}
+)
+
+viewof data_intake_filter_latitude_maximum = Inputs.range(
+  data_intake_latitude_bounds.length > 0
+    ? [Math.min(...data_intake_latitude_bounds), Math.max(...data_intake_latitude_bounds)]
+    : [-90, 90],
+  {label: "Maximum latitude", step: 0.01, value: Math.max(...(data_intake_latitude_bounds.length > 0 ? data_intake_latitude_bounds : [-90, 90]))}
+)
+
+viewof data_intake_filter_longitude_minimum = Inputs.range(
+  data_intake_longitude_bounds.length > 0
+    ? [Math.min(...data_intake_longitude_bounds), Math.max(...data_intake_longitude_bounds)]
+    : [-180, 180],
+  {label: "Minimum longitude", step: 0.01, value: Math.min(...(data_intake_longitude_bounds.length > 0 ? data_intake_longitude_bounds : [-180, 180]))}
+)
+
+viewof data_intake_filter_longitude_maximum = Inputs.range(
+  data_intake_longitude_bounds.length > 0
+    ? [Math.min(...data_intake_longitude_bounds), Math.max(...data_intake_longitude_bounds)]
+    : [-180, 180],
+  {label: "Maximum longitude", step: 0.01, value: Math.max(...(data_intake_longitude_bounds.length > 0 ? data_intake_longitude_bounds : [-180, 180]))}
+)
+
+viewof data_intake_filter_column = Inputs.select(
+  ["", ...data_intake_filterable_columns],
+  {label: "Column value filter"}
+)
+
+data_intake_filter_values = data_intake_filter_column
+  ? [...new Set(data_intake_loaded.rows.map(
+      (row) => String(row[data_intake_filter_column] ?? "")
+    ))].sort()
+  : []
+
+viewof data_intake_filter_column_values = Inputs.select(
+  data_intake_filter_values,
+  {label: "Keep selected values", multiple: true}
+)
+
+viewof data_intake_retained_columns = Inputs.checkbox(
+  data_intake_columns,
+  {label: "Retain columns", value: data_intake_columns}
+)
+
+viewof data_intake_filter_language = Inputs.radio(
+  new Map([["R (tidyverse/dplyr)", "r"], ["Python (pandas)", "python"]]),
+  {label: "Filter script language", value: "r"}
+)
+
+data_intake_filter_latitude_range = [
+  data_intake_filter_latitude_minimum,
+  data_intake_filter_latitude_maximum
+].sort((left, right) => left - right)
+
+data_intake_filter_longitude_range = [
+  data_intake_filter_longitude_minimum,
+  data_intake_filter_longitude_maximum
+].sort((left, right) => left - right)
+```
+
+```{ojs}
+data_intake_filter_date_text = (value) => value instanceof Date
+  ? value.toISOString().slice(0, 10)
+  : ""
+
+data_intake_filtered_rows = data_intake_loaded.rows.filter((row) => {
+  const start = data_intake_filter_date_text(data_intake_filter_start_date);
+  const end = data_intake_filter_date_text(data_intake_filter_end_date);
+  const timestamp = data_intake_mapping.time
+    ? data_intake_canonical_time(row[data_intake_mapping.time])
+    : null;
+  if (start && (!timestamp || timestamp.slice(0, 10) < start)) return false;
+  if (end && (!timestamp || timestamp.slice(0, 10) > end)) return false;
+  if (data_intake_mapping.latitude) {
+    const latitude = Number(row[data_intake_mapping.latitude]);
+    if (!Number.isFinite(latitude)
+      || latitude < data_intake_filter_latitude_range[0]
+      || latitude > data_intake_filter_latitude_range[1]) return false;
+  }
+  if (data_intake_mapping.longitude) {
+    const longitude = Number(row[data_intake_mapping.longitude]);
+    if (!Number.isFinite(longitude)
+      || longitude < data_intake_filter_longitude_range[0]
+      || longitude > data_intake_filter_longitude_range[1]) return false;
+  }
+  return !data_intake_filter_column_values.length
+    || !data_intake_filter_column
+    || data_intake_filter_column_values.includes(
+      String(row[data_intake_filter_column] ?? "")
+    );
+})
+
+data_intake_filter_preview = html`<div class="data-intake__status">
+  ${data_intake_filtered_rows.length.toLocaleString()} of
+  ${data_intake_loaded.rows.length.toLocaleString()} rows remain after filtering.
+</div>`
+
+data_intake_filter_script = {
+  const quote = (value) => JSON.stringify(value);
+  const rConditions = [];
+  const pythonConditions = [];
+  const start = data_intake_filter_date_text(data_intake_filter_start_date);
+  const end = data_intake_filter_date_text(data_intake_filter_end_date);
+  if (data_intake_mapping.time && start) {
+    rConditions.push(`as.Date(.data[[${quote(data_intake_mapping.time)}]]) >= as.Date(${quote(start)})`);
+    pythonConditions.push(`pd.to_datetime(data[${quote(data_intake_mapping.time)}]).dt.date >= pd.Timestamp(${quote(start)}).date()`);
+  }
+  if (data_intake_mapping.time && end) {
+    rConditions.push(`as.Date(.data[[${quote(data_intake_mapping.time)}]]) <= as.Date(${quote(end)})`);
+    pythonConditions.push(`pd.to_datetime(data[${quote(data_intake_mapping.time)}]).dt.date <= pd.Timestamp(${quote(end)}).date()`);
+  }
+  for (const [standard, range] of [
+    ["latitude", data_intake_filter_latitude_range],
+    ["longitude", data_intake_filter_longitude_range]
+  ]) {
+    const column = data_intake_mapping[standard];
+    if (column) {
+      rConditions.push(`dplyr::between(.data[[${quote(column)}]], ${range[0]}, ${range[1]})`);
+      pythonConditions.push(`data[${quote(column)}].between(${range[0]}, ${range[1]})`);
+    }
+  }
+  if (data_intake_filter_column && data_intake_filter_column_values.length > 0) {
+    const values = data_intake_filter_column_values.map(quote).join(", ");
+    rConditions.push(`.data[[${quote(data_intake_filter_column)}]] %in% c(${values})`);
+    pythonConditions.push(`data[${quote(data_intake_filter_column)}].astype(str).isin([${values}])`);
+  }
+  const retained = data_intake_retained_columns.map(quote).join(", ");
+  return data_intake_filter_language === "r"
+    ? ["```r", "library(dplyr)", "", "data <- data |>", ...(rConditions.length
+      ? [`  dplyr::filter(${rConditions.join(", ")}) |>`] : []),
+      `  dplyr::select(dplyr::all_of(c(${retained})))`, "```"].join("\n")
+    : ["```python", "import pandas as pd", "", ...(pythonConditions.length
+      ? [`data = data.loc[${pythonConditions.join(" & ")}]`] : []),
+      `data = data.loc[:, [${retained}]]`, "```"].join("\n");
+}
+
+data_intake_filter_script_preview = html`<pre class="data-intake__script"><code class="language-${data_intake_filter_language}">${data_intake_filter_script}</code></pre>`
+
+data_intake_download_filter_script = {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "data-intake__button";
+  button.textContent = "Download Filter Script (.md)";
+  button.disabled = data_intake_columns.length === 0;
+  button.addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([data_intake_filter_script], {
+      type: "text/markdown"
+    }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "glider_filter_script.md";
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+  return button;
+}
+```
+
+## 4. Validate required fields
 
 The mapped values are checked for numeric coordinate ranges and ISO8601
-timestamps. **Next:** correct missing mappings; if red flags remain, review
-them and use the acknowledgment button to unlock report generation.
+timestamps after filtering. **Next:** correct missing mappings; if red flags
+remain, review them and use the acknowledgment button to unlock report generation.
 
 ```{ojs}
 data_intake_canonical_time = (value) => {
@@ -890,6 +1115,9 @@ data_intake_canonical_time = (value) => {
 
 data_intake_validation = {
   const issues = [];
+  const rowsToValidate = typeof data_intake_filtered_rows === "undefined"
+    ? data_intake_loaded.rows
+    : data_intake_filtered_rows;
   const requiredFields = ["latitude", "longitude", "time"];
   const missingRequired = requiredFields.filter(
     (requiredField) => !data_intake_mapping[requiredField]
@@ -899,7 +1127,7 @@ data_intake_validation = {
     issues.push(`Required field "${requiredField}" is not mapped.`);
   }
 
-  const standardizedRows = data_intake_loaded.rows.map((row) => {
+  const standardizedRows = rowsToValidate.map((row) => {
     const standardized = Object.create(null);
     for (const [standardField, userField] of Object.entries(data_intake_mapping)) {
       if (userField) standardized[standardField] = row[userField];
@@ -949,7 +1177,7 @@ data_intake_validation = {
 
 ```{ojs}
 data_intake_red_flags = {
-  if (data_intake_loaded.rows.length === 0) return null;
+  if (data_intake_filtered_rows.length === 0) return null;
   if (data_intake_validation.issues.length === 0) {
     return html`<div class="data-intake__status data-intake__status--success">
       No Red Flags Detected — Ready to Proceed
@@ -969,7 +1197,7 @@ viewof data_intake_acknowledged = {
   const control = document.createElement("div");
   const button = document.createElement("button");
   const requiresAcknowledgment = data_intake_validation.issues.length > 0;
-  const canAcknowledge = data_intake_loaded.rows.length > 0
+  const canAcknowledge = data_intake_filtered_rows.length > 0
     && requiresAcknowledgment
     && data_intake_validation.missingRequired.length === 0;
 
@@ -1004,7 +1232,7 @@ viewof data_intake_acknowledged = {
 
 ```{ojs}
 data_intake_dashboard_status = {
-  const hasRows = data_intake_loaded.rows.length > 0;
+  const hasRows = data_intake_filtered_rows.length > 0;
   const hasNoLoadError = data_intake_loaded.error === null;
   const hasRequiredMappings = data_intake_validation.missingRequired.length === 0;
   const validationAccepted = data_intake_validation.issues.length === 0

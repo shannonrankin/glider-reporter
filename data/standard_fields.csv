@@ -1,0 +1,9 @@
+standard_field,description,units,aliases
+latitude,Geographic latitude,-90 to 90 deg,lat;lat_deg;latitude_deg
+longitude,Geographic longitude,-180 to 180 deg,lon;lon_deg;longitude_deg
+time,ISO8601 timestamp,UTC,time;iso_time;timestamp;datetime
+depth,Depth below surface,meters,depth;depth_m;pressure
+temperature,Sea water temperature,degC,temp;temp_c;water_temperature
+salinity,Practical salinity,PSU,salinity;salinity_ppt;practical_salinity
+density,Sea water density,kg/m3,density;sea_water_density
+oxygen,Dissolved oxygen concentration,umol/kg,oxygen;dissolved_oxygen;oxygen_concentration
