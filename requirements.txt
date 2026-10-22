@@ -1,2 +1,4 @@
 pandas==2.2.3
 PyYAML==6.0.2
+h5py==3.16.0
+pyarrow==26.0.0
