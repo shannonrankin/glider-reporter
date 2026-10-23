@@ -44,6 +44,31 @@ function fixture(name) {
   };
 }
 
+function cfFixture({units, calendar, noCalendar, times} = {}) {
+  const bytes = Buffer.from(readFileSync(new URL('./fixtures/data_intake_cf_time.nc', import.meta.url)));
+  const replaceAttribute = (original, replacement) => {
+    assert.ok(replacement.length <= original.length);
+    const position = bytes.indexOf(original);
+    assert.ok(position >= 0, `${original} must occur in the fixture`);
+    bytes.write(replacement.padEnd(original.length), position, 'ascii');
+  };
+  if (units) replaceAttribute('seconds since 1970-01-01T00:00:00Z', units);
+  if (calendar) replaceAttribute('gregorian', calendar);
+  if (noCalendar) replaceAttribute('calendar', 'othercal');
+  if (times) {
+    const reader = new netcdfjs.NetCDFReader(bytes);
+    const offset = reader.variables.find((variable) => variable.name === 'time').offset;
+    times.forEach((value, index) => bytes.writeDoubleBE(value, offset + index * 8));
+  }
+  return {
+    name: 'data_intake_cf_time.nc',
+    size: bytes.length,
+    async arrayBuffer() {
+      return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    }
+  };
+}
+
 function validate(rows, mapping) {
   const code = page.split('data_intake_canonical_time = ')[1]?.split('\n```')[0];
   assert.ok(code, 'The OG1.0 validation cell must be present');
@@ -121,7 +146,7 @@ test('the HDF5 fixture passes through h5wasm and the actual upload parser', asyn
 test('the NetCDF fixture retains dimensions, converts char values, and aligns coordinates', async () => {
   const result = await parseUpload(fixture('data_intake_profile.nc'));
   assert.equal(result.format, 'NetCDF (OG1.0)');
-  assert.deepEqual(result.warnings, []);
+  assert.match(result.warnings.join(' '), /time variable.*units.*missing or invalid/);
   assert.deepEqual(result.rows.map((row) => row.temperature), [10, 11, 12, 20, 21, 22]);
   assert.deepEqual(result.rows.map((row) => [row.time, row.latitude, row.longitude, row.depth, row.label]),
     [[0, 40, -70, 0, 'A'], [0, 40, -70, 5, 'A'], [0, 40, -70, 10, 'A'],
@@ -133,6 +158,80 @@ test('the NetCDF fixture retains dimensions, converts char values, and aligns co
   assert.deepEqual(validation.standardizedRows.map((row) => [row.latitude, row.longitude, row.depth]),
     result.rows.map((row) => [row.latitude, row.longitude, row.depth]));
   assert.deepEqual(validation.issues, ['6 row(s) contain blank or malformed timestamps.']);
+});
+
+test('CF NetCDF numeric time decodes through upload, alignment, and OG1.0 validation', async () => {
+  const result = await parseUpload(fixture('data_intake_cf_time.nc'));
+  assert.deepEqual(result.warnings, []);
+  const expected = ['1970-01-01T00:00:00Z', '1970-01-01T00:01:00Z'];
+  assert.deepEqual(result.rows.map((row) => row.time),
+    expected.flatMap((time) => Array(3).fill(time)));
+  assert.deepEqual(result.rows.map(({depth, temperature, latitude, longitude}) =>
+    [depth, temperature, latitude, longitude]), [
+    [0, 10, 40, -70], [5, 11, 40, -70], [10, 12, 40, -70],
+    [0, 20, 41, -71], [5, 21, 41, -71], [10, 22, 41, -71]
+  ]);
+  const validation = validate(result.rows, {
+    time: 'time', latitude: 'latitude', longitude: 'longitude', depth: 'depth'
+  });
+  assert.deepEqual(validation.missingRequired, []);
+  assert.deepEqual(validation.issues, []);
+  assert.deepEqual(validation.standardizedRows.map((row) => row.time),
+    result.rows.map((row) => row.time));
+});
+
+test('CF units, references, timezones, and millisecond precision are honored', async () => {
+  for (const [units, times, expected] of [
+    ['minutes since 2020-01-01 00:00:00', [0.5, 60.25],
+      ['2020-01-01T00:00:30Z', '2020-01-01T01:00:15Z']],
+    ['hours since 2020-01-01T00:00:00Z', [0, 1.5],
+      ['2020-01-01T00:00:00Z', '2020-01-01T01:30:00Z']],
+    ['days since 2020-01-01T00:00:00Z', [0, 1],
+      ['2020-01-01T00:00:00Z', '2020-01-02T00:00:00Z']],
+    ['seconds since 2020-01-01T00:00:00Z', [0.5, 60.25],
+      ['2020-01-01T00:00:00.500Z', '2020-01-01T00:01:00.250Z']],
+    ['days since 2020-01-01 00:00:00+02', [0, 1],
+      ['2019-12-31T22:00:00Z', '2020-01-01T22:00:00Z']]
+  ]) {
+    const result = await parseUpload(cfFixture({units, times, calendar: 'standard'}));
+    assert.deepEqual(result.warnings, [], units);
+    assert.deepEqual(result.rows.map((row) => row.time),
+      expected.flatMap((time) => Array(3).fill(time)), units);
+    assert.deepEqual(validate(result.rows, {
+      time: 'time', latitude: 'latitude', longitude: 'longitude'
+    }).issues, [], units);
+  }
+});
+
+test('absent CF calendar defaults to standard; ISO character times remain unchanged', async () => {
+  const numeric = await parseUpload(cfFixture({noCalendar: true}));
+  assert.deepEqual(numeric.warnings, []);
+  assert.equal(numeric.rows[3].time, '1970-01-01T00:01:00Z');
+
+  const strings = await parseUpload(fixture('data_intake_string_time.nc'));
+  assert.deepEqual(strings.warnings, []);
+  assert.deepEqual(strings.rows.map((row) => row.time),
+    ['2020-01-01T00:00:00Z', '2020-01-01T00:01:00Z']);
+  assert.deepEqual(validate(strings.rows, {
+    time: 'time', latitude: 'latitude', longitude: 'longitude'
+  }).issues, []);
+});
+
+test('invalid units and unsupported calendars never invent timestamps', async () => {
+  for (const options of [
+    {units: 'seconds after 1970-01-01T00:00:00Z'},
+    {calendar: '360_day'},
+    {units: 'seconds since 1500-01-01T00:00:00Z'},
+    {times: [-123456789012, 60]}
+  ]) {
+    const result = await parseUpload(cfFixture(options));
+    assert.match(result.warnings.join(' '), /time variable could not be decoded safely/);
+    assert.deepEqual(result.rows.map((row) => row.time),
+      (options.times ?? [0, 60]).flatMap((time) => Array(3).fill(time)));
+    assert.match(validate(result.rows, {
+      time: 'time', latitude: 'latitude', longitude: 'longitude'
+    }).issues.join(' '), /malformed timestamps/);
+  }
 });
 
 test('existing CSV parsing and upload safety limit remain unchanged', async () => {
